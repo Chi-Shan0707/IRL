@@ -143,9 +143,9 @@ pre code{background:none;padding:0;font-size:inherit}
 /* ---------- mathematics ---------- */
 .katex{font-size:1.02em}
 .katex-display{margin:1em 0 1.1em;overflow-x:auto;overflow-y:hidden;padding:4px 0}
-.eqn{display:flex;align-items:center;gap:14px}
-.eqn > .katex-display,.eqn > .m{flex:1 1 auto;min-width:0}
-.eqno{flex:0 0 auto;font-family:var(--sans);font-size:14px;color:var(--muted)}
+.eqn{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:14px}
+.eqn > .katex-display{min-width:0;text-align:center}
+.eqno{font-family:var(--sans);font-size:14px;color:var(--muted);white-space:nowrap}
 
 /* ---------- theorem-like blocks ---------- */
 .thm,.defn{margin:1.5em 0;padding:14px 20px;border-radius:8px;background:var(--card);border:1px solid var(--line)}
@@ -300,7 +300,7 @@ ol.refs .note{color:var(--muted)}
     <span><b>Yuhan Chi</b></span><span class="dot">&middot;</span>
     <span>Fudan University</span><span class="dot">&middot;</span>
     <time datetime="2026-08-19">August 19, 2026</time><span class="dot">&middot;</span>
-    <span>READING_TIME min read</span>
+    <span>About 70 min read</span>
   </div>
   <p class="intro">This post is the web companion to the lecture handout of the same title
   (<a href="irl-notes.pdf">PDF notes</a>; there is also a <a href="slides.html">slide deck</a>).
@@ -889,3 +889,1796 @@ This algebraic fact is what makes classical IRL tractable, and losing it is the 
 the linear class.</p>
 </section>
 </section>
+
+<!-- ============================================================ -->
+<!-- Part III                                                      -->
+<!-- ============================================================ -->
+<section id="part-3">
+<h2 class="part"><span class="n">Part III</span>Two selection principles, computed exactly</h2>
+
+<p>Throughout this part we stay in the <strong>safe corner</strong>: $\mathcal{S}$ and $\mathcal{A}$
+finite, the kernel $P$ fully known, and $\phi$ fixed in advance. Coordinate 2 therefore costs
+nothing &mdash; every expectation below is a finite sum we can actually evaluate &mdash; and we can
+concentrate wholly on Coordinate 1. This is the only part of the tutorial in which every number can
+be checked by hand, and it is worth the patience: the objects defined here reappear, in approximated
+form, in every method that follows.</p>
+
+<section id="sec-4">
+<h3><span class="sn">4</span>Selection principle I: maximum margin</h3>
+
+<p>Abbeel and Ng (2004) resolve the ambiguity of <a href="#sec-3">Section 3</a> with a geometric
+rule: among all rewards consistent with the data, prefer the one under which the expert beats the
+alternatives by the largest margin.</p>
+
+<h4 id="feature-expectations"><span class="sn">4.1</span>Feature expectations</h4>
+
+<div class="defn">
+  <p><span class="lab">Definition (feature expectation).</span></p>
+  $$\mu(\pi)\triangleq\mathbb{E}_{\tau\sim p_\pi}[\Phi(\tau)]=\mathbb{E}_\pi\Big[\sum_{t\ge0}\gamma^t\phi(s_t,a_t)\Big]\in\mathbb{R}^d,\qquad \mu_E\triangleq\frac1m\sum_{i=1}^m\Phi(\tau^{(i)}).$$
+</div>
+
+<p>In the safe corner, $\mu(\pi)$ is computed exactly, one feature coordinate at a time: coordinate
+$j$ is the value function of $\pi$ under the &ldquo;reward&rdquo; $\phi_j$, so by (1.3) it costs one
+linear solve with $\mathbf{I}-\gamma\mathbf{P}^\pi$.</p>
+
+<div class="thm">
+  <p><span class="lab">Lemma (feature matching suffices).</span> If
+  $\|\mu(\pi)-\mu_E\|_2\le\varepsilon$, then for every $w$ with $\|w\|_2\le1$,</p>
+  <div class="eqn" id="eq-featurematch">$$\big|J_{R_w}(\pi)-w^\top\mu_E\big|=\big|w^\top(\mu(\pi)-\mu_E)\big|\le\|w\|_2\,\|\mu(\pi)-\mu_E\|_2\le\varepsilon.$$<span class="eqno">(4.1)</span></div>
+  <p>The equality is (3.6); the first inequality is Cauchy&ndash;Schwarz. <em>Matching feature
+  expectations therefore matches expected return simultaneously for every reward in the linear
+  class, without knowing which one is the truth.</em></p>
+</div>
+
+<p>This lemma is the reason apprenticeship learning can sidestep identification altogether. It also
+states its own limitation with unusual clarity: the guarantee is quantified over
+$w\in\mathbb{R}^d$, and says nothing about rewards outside
+$\mathrm{span}\{\phi_1,\ldots,\phi_d\}$.</p>
+
+<h4 id="mm-optimisation"><span class="sn">4.2</span>The optimisation</h4>
+
+<p>Suppose we already have a collection of policies $\pi_0,\ldots,\pi_{k-1}$ (the algorithm below
+generates them). Because scaling $w\mapsto\alpha w$ scales any margin, a norm constraint is needed
+to keep the problem bounded.</p>
+
+<div class="callout accent">
+  <span class="ct">Max-margin IRL (Abbeel &amp; Ng, 2004)</span>
+  <div class="eqn" id="eq-maxmargin">$$\begin{aligned}\max_{\xi\in\mathbb{R},\,w\in\mathbb{R}^d}\quad&\xi\\ \text{subject to}\quad&w^\top\mu_E\;\ge\;w^\top\mu(\pi_i)+\xi,\qquad i=0,\ldots,k-1,\\ &\|w\|_2\le1.\end{aligned}$$<span class="eqno">(4.2)</span></div>
+</div>
+
+<p>This is the hard-margin SVM in disguise, with $\mu_E$ the single positive example and the
+$\mu(\pi_i)$ the negatives. Its dual is a minimum-distance problem,</p>
+<div class="eqn" id="eq-maxmargin-dual">$$\min_{\bar\mu\in\mathrm{conv}\{\mu(\pi_0),\ldots,\mu(\pi_{k-1})\}}\|\mu_E-\bar\mu\|_2,\qquad\text{with optimal}\quad w\propto\mu_E-\bar\mu,$$<span class="eqno">(4.3)</span></div>
+<p>which is the geometric content of the algorithm: <strong>the reward direction always points from
+the best current imitation towards the expert.</strong> The optimal margin equals the distance from
+$\mu_E$ to the convex hull; it is positive exactly when the expert's feature expectations lie outside
+the hull of what we can currently produce. Solving (4.3) directly is Abbeel and Ng's
+&ldquo;projection&rdquo; variant, which avoids a QP solver.</p>
+
+<h4 id="mm-algorithm"><span class="sn">4.3</span>The algorithm, and what it actually returns</h4>
+
+<p>The algorithm is a game between two players. A <em>reward player</em> finds the direction $w$ in
+which the expert is most clearly better than everything produced so far; a <em>policy player</em>
+then solves the forward problem for that reward, producing a new policy that closes the gap in that
+direction.</p>
+
+<div class="algo" id="alg-maxmargin">
+  <div class="cap">Algorithm 1. Max-margin / apprenticeship learning (Abbeel &amp; Ng, 2004)</div>
+  <ol>
+    <li><span class="kw">Require:</span> dynamics $\mathcal{M}$, features $\phi$, expert data $\mathcal{D}_E$, tolerance $\varepsilon&gt;0$</li>
+    <li>$\mu_E\gets\frac1m\sum_{i=1}^m\sum_t\gamma^t\phi(s_t^{(i)},a_t^{(i)})$</li>
+    <li>pick any $\pi_0$; compute $\mu(\pi_0)$ exactly, one linear solve with $\mathbf{I}-\gamma\mathbf{P}^{\pi_0}$ per feature coordinate</li>
+    <li><span class="kw">for</span> $k=1,2,\ldots$ <span class="kw">do</span></li>
+    <li class="i1">(<em>reward player</em>) solve (4.2) over $\{\mu(\pi_0),\ldots,\mu(\pi_{k-1})\}$ to get $(w^{(k)},\xi^{(k)})$</li>
+    <li class="i1"><span class="kw">if</span> $\xi^{(k)}\le\varepsilon$ <span class="kw">then break</span></li>
+    <li class="i1">(<em>policy player</em>) $\pi_k\gets$ exact forward RL solution for $R^{(k)}=(w^{(k)})^\top\phi$</li>
+    <li class="i1">compute $\mu(\pi_k)$ exactly</li>
+    <li><span class="kw">end for</span></li>
+    <li>solve $\lambda^\star=\arg\min_{\lambda\in\Delta_k}\big\|\mu_E-\sum_i\lambda_i\,\mu(\pi_i)\big\|_2$</li>
+    <li><span class="kw">return</span> the <em>mixed</em> policy $\tilde\pi$: sample $i\sim\lambda^\star$ once at $t=0$, then follow $\pi_i$ forever</li>
+  </ol>
+</div>
+
+<div class="callout warn">
+  <span class="ct">The output is a mixture, not a single policy</span>
+  <p>Algorithm 1 does <em>not</em> return the last $\pi_k$. Its guarantee is for the mixed policy
+  $\tilde\pi$, and the reason is exactly (4.3): what is provably close to $\mu_E$ is a point in the
+  <em>convex hull</em> of the $\mu(\pi_i)$, and convex combinations of feature expectations are
+  realised by randomising over policies, not by any single one of them. This works because occupancy
+  measures mix linearly, $\rho_{\tilde\pi}=\sum_i\lambda_i\rho_{\pi_i}$, a fact we exploit again in
+  <a href="#sec-9">Section 9</a>. Presentations that return &ldquo;the final policy&rdquo; have
+  quietly dropped the theorem.</p>
+</div>
+
+<div class="thm">
+  <p><span class="lab">Theorem (convergence, informal).</span> If
+  $\phi:\mathcal{S}\times\mathcal{A}\to[0,1]^d$, then $\|\mu(\pi)\|_2\le\sqrt d/(1-\gamma)$ for all
+  $\pi$, and Algorithm 1 produces $\|\mu(\tilde\pi)-\mu_E\|_2\le\varepsilon$ after</p>
+  $$k=O\Big(\frac{d}{(1-\gamma)^2\varepsilon^2}\log\frac{d}{(1-\gamma)\varepsilon}\Big)$$
+  <p>iterations &mdash; notably, a bound independent of $|\mathcal{S}|$. Combined with (4.1),
+  $\tilde\pi$ then performs within $\varepsilon$ of the expert under every reward in the class.</p>
+</div>
+
+<h4 id="mm-limitations"><span class="sn">4.4</span>Limitations, stated precisely</h4>
+
+<ol>
+  <li><strong>Ties are broken arbitrarily.</strong> Many $(w,\xi)$ may achieve the same margin; the
+  QP picks one. The selection principle is a convenience, not a discovery.</li>
+  <li><strong>Sub-optimal experts break it.</strong> The constraints assert that the expert is best.
+  A noisy expert makes the feasible set shrink, or become empty, and there is no likelihood to absorb
+  the noise. This is precisely the gap maximum entropy fills.</li>
+  <li><strong>The inner solve is a full forward RL problem</strong> per iteration. In the safe corner
+  it is exact; outside it, it is the bottleneck.</li>
+  <li><strong>It is silent about which reward is right.</strong> Its guarantee is about
+  <em>performance</em>, quantified over the whole class.</li>
+</ol>
+
+<div class="callout ledger">
+  <span class="ct">Ledger &middot; Max-margin IRL</span>
+  <dl>
+    <dt>Assumed (Coordinate 1)</dt>
+    <dd>The expert is exactly optimal; the reward is linear in a fixed $\phi$; ties are broken by the maximal margin.</dd>
+    <dt>Approximated (Coordinate 2)</dt>
+    <dd>Nothing, in the safe corner: $\mu(\pi)$ comes from an exact linear solve and the inner RL is exact. The cost is one full forward RL solve and one QP per iteration.</dd>
+    <dt>Delivers</dt>
+    <dd>A mixed policy matching $\mu_E$, plus a reward direction $w$ whose interpretation is weak.</dd>
+  </dl>
+</div>
+</section>
+
+<section id="sec-5">
+<h3><span class="sn">5</span>Selection principle II: maximum entropy</h3>
+
+<p>Max-margin IRL treats the expert as infallible. Real demonstrations are noisy &mdash; and worse,
+<em>systematically</em> noisy: an expert who is indifferent between two routes will take each about
+half the time, and a method built on strict inequalities has nothing to say about that. Ziebart et
+al. (2008) replace the inequality model by a probabilistic one, and then select among the surviving
+models by maximum entropy, in the spirit of Jaynes's original principle (1957).</p>
+
+<div class="callout">
+  <span class="ct">The setting for this section</span>
+  <p>Throughout Section 5 we take <strong>finite</strong> $\mathcal{S}$ and $\mathcal{A}$, a
+  <strong>finite horizon</strong> $T$, a <strong>known</strong> kernel $P$, and &mdash; following the
+  original paper &mdash; we set $\gamma=1$, writing $\Phi(\tau)=\sum_{t=0}^{T-1}\phi(s_t,a_t)$.
+  Discounting and infinite horizons are restored in <a href="#sec-6">Section 6</a>, where we explain
+  why they are genuinely more delicate than simply inserting $\gamma^t$.</p>
+</div>
+
+<h4 id="reference-measure"><span class="sn">5.1</span>Why a distribution over trajectories, and over what?</h4>
+
+<p>We want a model $p(\tau)$ that (i) reproduces the expert's feature statistics and (ii) commits to
+nothing else. The second requirement is what &ldquo;maximum entropy&rdquo; formalises. But entropy
+of <em>what</em>, exactly? This is where most treatments go wrong, so we go slowly.</p>
+
+<p>A trajectory is produced by two agencies: the learner, who chooses actions, and the environment,
+which chooses successor states. If we maximise the plain Shannon entropy
+$-\sum_\tau p(\tau)\log p(\tau)$, we implicitly declare every trajectory equally plausible <em>a
+priori</em>, including trajectories the environment would essentially never produce. That is
+obviously wrong. The fix is to measure entropy relative to a reference measure that encodes what
+the environment does.</p>
+
+<div class="defn">
+  <p><span class="lab">Definition (dynamics-induced reference measure).</span> For
+  $\tau=(s_0,a_0,\ldots,s_T)$,</p>
+  <div class="eqn" id="eq-refmeasure">$$q(\tau)\triangleq d_0(s_0)\prod_{t=0}^{T-1}P(s_{t+1}\mid s_t,a_t).$$<span class="eqno">(5.1)</span></div>
+</div>
+
+<div class="callout">
+  <span class="ct">Remark: $q$ is a measure, not a probability distribution</span>
+  <p>Summing over $\mathcal{T}$ gives $\sum_\tau q(\tau)=|\mathcal{A}|^T$, because $q$ integrates out
+  the environment but not the actions. It is exactly the prior that is &ldquo;uniform over your own
+  choices, honest about nature's&rdquo;. Nothing below requires $q$ to be normalised.</p>
+</div>
+
+<div class="defn">
+  <p><span class="lab">Definition (relative entropy objective).</span></p>
+  <div class="eqn" id="eq-relentropy">$$\mathcal{H}_q(p)\triangleq-\sum_{\tau\in\mathcal{T}}p(\tau)\log\frac{p(\tau)}{q(\tau)}=-\mathrm{KL}(p\,\|\,q).$$<span class="eqno">(5.2)</span></div>
+</div>
+
+<p>When $P$ is deterministic and $d_0$ is uniform, $q$ is constant on feasible trajectories and
+$\mathcal{H}_q$ reduces to Shannon entropy up to an additive constant. That special case is the one
+usually presented; it is not the general case.</p>
+
+<div class="callout warn">
+  <span class="ct">Two errors this definition prevents</span>
+  <p><strong>(1) The retrofit error.</strong> If one maximises plain Shannon entropy, the stationary
+  solution is $p(\tau)\propto e^{w^\top\Phi(\tau)}$ with <em>no dynamics factor</em>. Many
+  expositions derive that, and then later assert without comment that &ldquo;really&rdquo;
+  $p(\tau)\propto q(\tau)e^{w^\top\Phi(\tau)}$. These are solutions to two different programs.
+  Putting $q$ into the objective from the first line makes the derivation and the final formula
+  agree.</p>
+  <p><strong>(2) The continuum error.</strong> If one starts with $-\int p\log p\,d\tau$ over a
+  continuous trajectory space, the objective is a <em>differential</em> entropy: it is not invariant
+  under reparameterisation of $\tau$ and it is not bounded above. The relative entropy
+  $-\mathrm{KL}(p\|q)$ has neither defect. This is a further reason to begin in the discrete setting:
+  the pathology is invisible until you try to make things rigorous.</p>
+</div>
+
+<h4 id="primal"><span class="sn">5.2</span>The primal program</h4>
+
+<div class="eqn" id="eq-maxent-primal">$$\begin{aligned}\max_p\quad&\mathcal{H}_q(p)=-\sum_\tau p(\tau)\log\frac{p(\tau)}{q(\tau)}\\ \text{s.t.}\quad&\sum_\tau p(\tau)\,\Phi(\tau)=\mu_E\qquad\text{(feature matching)}\\ &\sum_\tau p(\tau)=1,\quad p(\tau)\ge0\qquad\text{(normalisation)}\end{aligned}$$<span class="eqno">(5.3)</span></div>
+
+<p>The feasible set is the intersection of the probability simplex with $d$ affine constraints, and
+$\mathcal{H}_q$ is strictly concave on it, so the solution &mdash; if the feasible set is non-empty
+&mdash; is unique. Note that this uniqueness is over <em>distributions</em>, not over rewards; the
+non-identifiability of <a href="#sec-3">Section 3</a> still applies.</p>
+
+<h4 id="variational"><span class="sn">5.3</span>Variational derivation</h4>
+
+<p>This is the central derivation of maximum-entropy IRL. We split it into four steps, each doing
+exactly one thing.</p>
+
+<div class="derivation" data-der>
+<div class="dstep" data-step="1">
+  <div class="dh">Step 1: write down the Lagrangian</div>
+  <p>Introduce a multiplier $w\in\mathbb{R}^d$ for feature matching and $c\in\mathbb{R}$ for
+  normalisation:</p>
+  <div class="eqn" id="eq-lagrangian">$$\mathcal{L}(p,w,c)=-\sum_\tau p(\tau)\log\frac{p(\tau)}{q(\tau)}+w^\top\Big(\sum_\tau p(\tau)\Phi(\tau)-\mu_E\Big)+c\Big(\sum_\tau p(\tau)-1\Big).$$<span class="eqno">(5.4)</span></div>
+  <p class="dhint">The three terms are the relative-entropy objective, the &ldquo;features equal
+  $\mu_E$&rdquo; constraint and the &ldquo;probabilities sum to one&rdquo; constraint. Non-negativity
+  will turn out to hold automatically.</p>
+</div>
+<div class="dstep" data-step="2">
+  <div class="dh">Step 2: stationarity in $p(\tau)$</div>
+  <p>Fix one trajectory $\tau$ and treat $\mathcal{L}$ as a function of the single number $p(\tau)$.
+  Using $\frac{\partial}{\partial p}\big[-p\log(p/q)\big]=-\log\frac pq-1$,</p>
+  <div class="eqn" id="eq-stationarity">$$\frac{\partial\mathcal{L}}{\partial p(\tau)}=-\log\frac{p(\tau)}{q(\tau)}-1+w^\top\Phi(\tau)+c=0.$$<span class="eqno">(5.5)</span></div>
+  <p class="dhint">Because the problem is concave in $p$ with affine constraints, a stationary point of
+  the Lagrangian is the optimum.</p>
+</div>
+<div class="dstep" data-step="3">
+  <div class="dh">Step 3: solve for the form of $p(\tau)$</div>
+  <p>Rearrange (5.5) and exponentiate:</p>
+  <div class="eqn" id="eq-maxent-solve">$$\log\frac{p(\tau)}{q(\tau)}=w^\top\Phi(\tau)+c-1\quad\Longrightarrow\quad p(\tau)=q(\tau)\exp\big(w^\top\Phi(\tau)+c-1\big).$$<span class="eqno">(5.6)</span></div>
+  <p class="dhint">The structure is already visible: a dynamics factor $q(\tau)$ times the exponential
+  of the reward. The result is automatically positive wherever $q$ is. All that remains is to pin
+  down the constant $c$.</p>
+</div>
+<div class="dstep" data-step="4">
+  <div class="dh">Step 4: normalise, and meet the partition function</div>
+  <p>Imposing $\sum_\tau p(\tau)=1$ gives $e^{c-1}\sum_\tau q(\tau)e^{w^\top\Phi(\tau)}=1$, that is,
+  $e^{c-1}=1/Z(w)$ with the <strong>partition function</strong></p>
+  <div class="eqn" id="eq-partition">$$Z(w)\triangleq\sum_{\tau\in\mathcal{T}}q(\tau)\,e^{w^\top\Phi(\tau)}.$$<span class="eqno">(5.7)</span></div>
+</div>
+<button class="reveal-btn" type="button">Show next step</button>
+</div>
+
+<div class="callout accent">
+  <span class="ct">The maximum-entropy trajectory model</span>
+  <div class="eqn" id="eq-maxent-model">$$p_w(\tau)=\frac{1}{Z(w)}\;\underbrace{q(\tau)}_{\text{what nature does}}\;\underbrace{e^{w^\top\Phi(\tau)}}_{\text{what the agent wants}},\qquad Z(w)=\sum_\tau q(\tau)\,e^{w^\top\Phi(\tau)}.$$<span class="eqno">(5.8)</span></div>
+  <p>Two trajectories with equal reward need <em>not</em> be equally likely: the one the environment
+  resists is rarer. Exponentially better trajectories are exponentially more likely, but never
+  certain &mdash; which is precisely the graceful handling of a sub-optimal expert that max-margin
+  lacked.</p>
+</div>
+
+<h4 id="dual-mle"><span class="sn">5.4</span>The dual is maximum likelihood, and it is convex</h4>
+
+<p>Having found the form of the optimal $p$, we substitute it back to obtain a problem in $w$ alone.</p>
+
+<div class="derivation" data-der>
+<div class="dstep" data-step="1">
+  <div class="dh">Step 1: evaluate the log-ratio at the optimum</div>
+  <p>From (5.8), $\log p_w(\tau)-\log q(\tau)=w^\top\Phi(\tau)-\log Z(w)$.</p>
+</div>
+<div class="dstep" data-step="2">
+  <div class="dh">Step 2: substitute into the Lagrangian</div>
+  <p>The entropy term becomes $-\sum_\tau p_w(\tau)\big(w^\top\Phi(\tau)-\log Z(w)\big)=-w^\top\sum_\tau p_w\Phi+\log Z(w)$.
+  The normalisation term vanishes because $p_w$ sums to one, and the feature term contributes
+  $+w^\top\sum_\tau p_w\Phi-w^\top\mu_E$, which cancels the first piece.</p>
+</div>
+<div class="dstep" data-step="3">
+  <div class="dh">Step 3: the dual objective</div>
+  <p>What survives is the dual function, to be <em>minimised</em> over $w$:</p>
+  <div class="eqn" id="eq-maxent-dual">$$g(w)\triangleq\log Z(w)-w^\top\mu_E.$$<span class="eqno">(5.9)</span></div>
+</div>
+<button class="reveal-btn" type="button">Show next step</button>
+</div>
+
+<div class="thm">
+  <p><span class="lab">Theorem (duality and maximum likelihood).</span> Minimising (5.9) is exactly
+  maximising the average log-likelihood of the demonstrations under $p_w$:</p>
+  <div class="eqn" id="eq-maxent-mle">$$\frac1m\sum_{i=1}^m\log p_w(\tau^{(i)})=\frac1m\sum_{i=1}^m\Big[\log q(\tau^{(i)})+w^\top\Phi(\tau^{(i)})-\log Z(w)\Big]=\underbrace{w^\top\mu_E-\log Z(w)}_{=\,-g(w)}+\underbrace{\tfrac1m\textstyle\sum_i\log q(\tau^{(i)})}_{\text{does not involve }w}.$$<span class="eqno">(5.10)</span></div>
+</div>
+
+<p>The dropped term is the log-likelihood of the observed transitions under the true dynamics. It is
+a constant of the optimisation, which is why it is usually invisible.</p>
+
+<div class="thm">
+  <p><span class="lab">Theorem (convexity).</span> $w\mapsto\log Z(w)$ is convex, with</p>
+  <div class="eqn" id="eq-logz-grad">$$\nabla_w\log Z(w)=\mathbb{E}_{p_w}[\Phi(\tau)],\qquad\nabla_w^2\log Z(w)=\mathrm{Cov}_{p_w}[\Phi(\tau)]\succeq0.$$<span class="eqno">(5.11)</span></div>
+  <p>Hence $g$ is convex. It is strictly convex, and the optimal $w$ unique, precisely when the
+  features $\Phi$ are not almost surely confined to a proper affine subspace.</p>
+</div>
+
+<div class="derivation" data-der>
+<div class="dstep" data-step="1">
+  <div class="dh">Proof, step 1: the gradient</div>
+  <p>$\nabla_wZ=\sum_\tau q(\tau)e^{w^\top\Phi(\tau)}\Phi(\tau)$, so dividing by $Z$ gives
+  $\nabla_w\log Z=\sum_\tau p_w(\tau)\Phi(\tau)=\mathbb{E}_{p_w}[\Phi]$.</p>
+</div>
+<div class="dstep" data-step="2">
+  <div class="dh">Proof, step 2: the Hessian</div>
+  <p>Differentiate $\sum_\tau p_w(\tau)\Phi(\tau)$ once more, using
+  $\nabla_wp_w(\tau)=p_w(\tau)\big(\Phi(\tau)-\mathbb{E}_{p_w}[\Phi]\big)$:</p>
+  $$\nabla_w^2\log Z=\mathbb{E}_{p_w}[\Phi\Phi^\top]-\mathbb{E}_{p_w}[\Phi]\,\mathbb{E}_{p_w}[\Phi]^\top=\mathrm{Cov}_{p_w}[\Phi].$$
+  <p>A covariance matrix is positive semi-definite, and it is positive definite unless some
+  non-zero direction $v$ has $v^\top\Phi$ constant under $p_w$. <span class="qed">&#8718;</span></p>
+</div>
+<button class="reveal-btn" type="button">Show next step</button>
+</div>
+
+<div class="callout ok">
+  <span class="ct">Corollary: the learning rule</span>
+  <div class="eqn" id="eq-learning-rule">$$\boxed{\;-\nabla_wg(w)=\mu_E-\mathbb{E}_{p_w}[\Phi(\tau)]\;}$$<span class="eqno">(5.12)</span></div>
+  <p>Gradient ascent moves $w$ so as to close the gap between what the expert did and what the
+  current model predicts. At the optimum the two feature expectations coincide, so the maximum
+  likelihood solution satisfies the feature-matching constraint of (5.3) exactly.</p>
+</div>
+
+<div class="callout">
+  <span class="ct">Remark: a pleasing tension worth noticing</span>
+  <p>The convexity theorem says the reward <em>parameter</em> $w$ has a unique optimum. Section 3
+  says the reward <em>function</em> is not identified. Both are true. The resolution is that maximum
+  entropy is a selection principle: it picks one point out of the equivalence class, and picks it
+  uniquely. <strong>Uniqueness of an estimator is not identifiability of an estimand.</strong></p>
+</div>
+
+<h4 id="computing-z"><span class="sn">5.5</span>Computing $Z$: the whole difficulty, made concrete</h4>
+
+<p>The learning rule (5.12) looks like a two-line algorithm, and the entire remainder of this
+tutorial exists because of the innocuous term $\mathbb{E}_{p_w}[\Phi]$. Evaluating it requires
+$Z(w)$, and $Z(w)$ is a sum over $\mathcal{T}$. Write $R=R_w$ for brevity.</p>
+
+<div class="derivation" data-der>
+<div class="dstep" data-step="1">
+  <div class="dh">Step 1: enumeration is hopeless, but finite</div>
+  <p>With $|\mathcal{A}|$ actions and horizon $T$, $|\mathcal{T}|$ grows like $|\mathcal{A}|^T$ (times
+  the branching of $P$). For a $5\times5$ gridworld with 4 actions and $T=20$ that is
+  $4^{20}\approx10^{12}$ trajectories: finite, and still impossible. The value of the discrete
+  formulation is not that we enumerate; it is that $Z$ is unambiguously <em>defined</em>, so we can
+  look for structure.</p>
+</div>
+<div class="dstep" data-step="2">
+  <div class="dh">Step 2: the structure is that $q$ factorises</div>
+  <p>Both ingredients of the summand are products or sums over time:
+  $q(\tau)=d_0(s_0)\prod_tP(s_{t+1}\mid s_t,a_t)$ and $\Phi(\tau)=\sum_t\phi(s_t,a_t)$, so
+  $e^{w^\top\Phi(\tau)}=\prod_te^{R(s_t,a_t)}$. The summand is therefore a product of per-step
+  factors, and the sum over trajectories can be pushed inside, one time step at a time, from the end
+  backwards.</p>
+</div>
+<div class="dstep" data-step="3">
+  <div class="dh">Step 3: the backward recursion</div>
+  <p>Let $Z_t(s)$ be the sum, over all suffixes $(a_t,s_{t+1},\ldots,s_T)$ started at $s_t=s$, of
+  $\prod_{u\ge t}P(s_{u+1}\mid s_u,a_u)\,e^{R(s_u,a_u)}$. Splitting off the first action and
+  successor gives</p>
+  <div class="eqn" id="eq-backward-z">$$Z_T(s)\triangleq1,\qquad Z_t(s)=\sum_{a\in\mathcal{A}}e^{R(s,a)}\sum_{s'\in\mathcal{S}}P(s'\mid s,a)\,Z_{t+1}(s'),\quad t=T-1,\ldots,0,$$<span class="eqno">(5.13)</span></div>
+  <p>and averaging over the start state gives $Z(w)=\sum_sd_0(s)Z_0(s)$.</p>
+</div>
+<div class="dstep" data-step="4">
+  <div class="dh">Step 4: the same recursion in log space</div>
+  <p>Writing $V_t(s)=\log Z_t(s)$ turns products into sums and exposes a soft Bellman backup:</p>
+  <div class="eqn" id="eq-backward-v">$$V_t(s)=\log\sum_a\exp\Big(\underbrace{R(s,a)+\log\sum_{s'}P(s'\mid s,a)\,e^{V_{t+1}(s')}}_{=:\,Q_t(s,a)}\Big).$$<span class="eqno">(5.14)</span></div>
+  <p class="dhint">The cost is $O(T|\mathcal{S}|^2|\mathcal{A}|)$ instead of enumerating all
+  $O(|\mathcal{A}|^T)$ action sequences. Note that $Q_t(s,a)$ denotes the whole argument of the exponential, immediate reward included.</p>
+</div>
+<button class="reveal-btn" type="button">Show next step</button>
+</div>
+
+<div class="callout accent">
+  <span class="ct">Answer: where does knowledge of $P$ enter? (first place)</span>
+  <p>Look at (5.13). The kernel $P(s'\mid s,a)$ is consumed inside the inner sum, once per $(s,a)$
+  per time step. This is the <strong>first</strong> of exactly two places where MaxEnt IRL needs a
+  model. The second appears in <a href="#forward-pass">Section 5.8</a>. When we ask, in
+  <a href="#sec-8">Section 8</a>, &ldquo;what if $P$ is unknown?&rdquo;, these two sums are the
+  entire content of the question.</p>
+</div>
+
+<h4 id="worked-example"><span class="sn">5.6</span>A worked example you can check by hand</h4>
+
+<p>Let $\mathcal{S}=\{s_1,s_2\}$, $\mathcal{A}=\{L,R\}$, $d_0=\delta_{s_1}$, $T=2$, with deterministic
+dynamics: $L$ moves to $s_1$ and $R$ moves to $s_2$, from either state. Let the rewards be
+$R(s_1,L)=0$, $R(s_1,R)=1$, $R(s_2,L)=0$, $R(s_2,R)=2$. Since the dynamics are deterministic,
+$q(\tau)=1$ for every feasible action sequence.</p>
+
+<p><strong>By enumeration.</strong> There are four action sequences:</p>
+<div class="tablewrap">
+<table class="min">
+<caption>Table 2. Enumerating the partition function of the two-state example.</caption>
+<thead><tr><th>Sequence</th><th>Path</th><th>Return</th><th>Weight $e^{\text{return}}$</th></tr></thead>
+<tbody>
+<tr><td><code>LL</code></td><td>$s_1\to s_1\to s_1$</td><td>$0+0=0$</td><td class="num">$1.0000$</td></tr>
+<tr><td><code>LR</code></td><td>$s_1\to s_1\to s_2$</td><td>$0+1=1$</td><td class="num">$2.7183$</td></tr>
+<tr><td><code>RL</code></td><td>$s_1\to s_2\to s_1$</td><td>$1+0=1$</td><td class="num">$2.7183$</td></tr>
+<tr><td><code>RR</code></td><td>$s_1\to s_2\to s_2$</td><td>$1+2=3$</td><td class="num">$20.0855$</td></tr>
+<tr><td></td><td></td><td><strong>$Z=$</strong></td><td class="num"><strong>$26.5221$</strong></td></tr>
+</tbody>
+</table>
+</div>
+
+<p><strong>By the backward recursion (5.14)</strong>, starting from $V_2\equiv0$ (with deterministic
+dynamics, $Q_t(s,a)=R(s,a)+V_{t+1}(s')$ for the unique successor $s'$):</p>
+$$\begin{aligned}
+V_1(s_1)&=\log(e^0+e^1)=1.3133, & V_1(s_2)&=\log(e^0+e^2)=2.1269,\\
+Q_0(s_1,L)&=0+V_1(s_1)=1.3133, & Q_0(s_1,R)&=1+V_1(s_2)=3.1269,\\
+V_0(s_1)&=\log\big(e^{1.3133}+e^{3.1269}\big)=3.2780, & Z&=e^{V_0(s_1)}=26.5221.\ \checkmark
+\end{aligned}$$
+<p>The model's first-action probability agrees both ways, too:</p>
+$$p_w(a_0=R)=e^{Q_0(s_1,R)-V_0(s_1)}=\frac{22.804}{26.522}=0.8598=\frac{e^1+e^3}{Z}.\ \checkmark$$
+
+<div class="callout ok">
+  <span class="ct">What this example teaches</span>
+  <p>Four trajectories collapsed into four $(s,a)$ evaluations. With $T=20$ the same collapse turns
+  $10^{12}$ trajectories into $160$ state&ndash;action evaluations. This is what it means for
+  Coordinate 2 to be free in the safe corner &mdash; and as soon as $\mathcal{S}$ grows or $P$
+  becomes unknown, these sums stop being computable and the second half of the story begins.</p>
+</div>
+
+<h4 id="causal-trap"><span class="sn">5.7</span>The stochastic-dynamics trap, and maximum <em>causal</em> entropy</h4>
+
+<p>The worked example was deterministic, and that was not laziness. Look again at (5.14). The inner
+term</p>
+<div class="eqn" id="eq-inner-softmax">$$\log\sum_{s'}P(s'\mid s,a)\,e^{V_{t+1}(s')}$$<span class="eqno">(5.15)</span></div>
+<p>is a <em>soft maximum</em> over successor states, not an expectation. Since
+$\log\mathbb{E}[e^X]\ge\mathbb{E}[X]$ by Jensen's inequality, it systematically over-values actions
+with high variance in their outcomes. The pathology is sharper than a bias in a formula: it is a
+statement about what the model believes.</p>
+
+<div class="thm">
+  <p><span class="lab">Proposition (the naive model secretly rewrites the dynamics).</span> Under
+  $p_w$ of (5.8), the conditional law of the successor state is</p>
+  <div class="eqn" id="eq-naive-trap">$$p_w(s_{t+1}=s'\mid s_t=s,a_t=a)=\frac{P(s'\mid s,a)\,e^{V_{t+1}(s')}}{\sum_{s''}P(s''\mid s,a)\,e^{V_{t+1}(s'')}}\;\ne\;P(s'\mid s,a).$$<span class="eqno">(5.16)</span></div>
+  <p>The inequality holds in general: equality requires $V_{t+1}$ to be constant on the support of $P(\cdot\mid s,a)$.</p>
+</div>
+<div class="proof">
+  <p><span class="lab">Proof.</span> Marginalise (5.8) over all suffixes after $s_{t+1}$ using the
+  backward recursion; the suffix sum contributes the factor $Z_{t+1}(s')=e^{V_{t+1}(s')}$, which
+  multiplies $P(s'\mid s,a)$ before renormalisation. <span class="qed">&#8718;</span></p>
+</div>
+
+<div class="callout ok">
+  <span class="ct">A two-line illustration</span>
+  <p>From some state, action <em>gamble</em> leads with probability $\frac12$ each to a state worth
+  $V_{t+1}=10$ or to one worth $0$; action <em>safe</em> leads for certain to a state worth $5$ (both
+  actions have zero immediate reward). Their expected values are identical, $5$ and $5$. But the
+  naive backup scores <em>gamble</em> at $\log\big(\tfrac12e^{10}+\tfrac12e^{0}\big)=9.307$ against
+  $5$ for <em>safe</em>, so the model prefers gambling by a factor $e^{4.307}\approx74$. By (5.16) it
+  also believes the gamble pays off with probability $e^{10}/(e^{10}+1)\approx0.99995$ rather than
+  $0.5$.</p>
+</div>
+
+<div class="callout warn">
+  <span class="ct">What this means</span>
+  <p>The maximum-entropy trajectory model with stochastic dynamics is not a model of an agent
+  choosing actions in the given MDP. It is a model of an agent who <em>also</em> tilts nature towards
+  fortunate outcomes. Fitted to a real expert, it will explain lucky outcomes as intentional and
+  infer rewards that reward luck. In a deterministic MDP the tilt is vacuous ($P$ is a point mass),
+  which is why the original presentation is correct as stated &mdash; and why the problem is so easy
+  to miss.</p>
+</div>
+
+<p>The remedy is to stop optimising over arbitrary trajectory distributions and to optimise over
+<em>policies</em> instead, forcing the true dynamics to appear as an unchangeable factor.</p>
+
+<div class="defn">
+  <p><span class="lab">Definition (causal entropy).</span> For a (possibly time-dependent) policy
+  $\pi$, let $p_\pi(\tau)=d_0(s_0)\prod_t\pi_t(a_t\mid s_t)P(s_{t+1}\mid s_t,a_t)$ and</p>
+  <div class="eqn" id="eq-causal-entropy">$$\mathcal{H}^{\mathrm{causal}}(\pi)\triangleq\mathbb{E}_{p_\pi}\Big[\sum_{t=0}^{T-1}-\log\pi_t(a_t\mid s_t)\Big].$$<span class="eqno">(5.17)</span></div>
+</div>
+
+<p>Only the agent's own choices are counted as uncertainty; randomness supplied by nature is not
+credited to the agent.</p>
+
+<div class="thm">
+  <p><span class="lab">Theorem (maximum causal entropy IRL; Ziebart 2010).</span> The solution of</p>
+  <div class="eqn" id="eq-maxcausal-program">$$\max_\pi\;\mathcal{H}^{\mathrm{causal}}(\pi)\quad\text{s.t.}\quad\mathbb{E}_{p_\pi}[\Phi(\tau)]=\mu_E$$<span class="eqno">(5.18)</span></div>
+  <p>is the soft-optimal policy for $R_w=w^\top\phi$, with $w$ the multiplier, given by the backward
+  recursion (with $V_T\equiv0$)</p>
+  <div class="eqn" id="eq-causal-backward">$$\begin{aligned}Q_t(s,a)&=R_w(s,a)+\sum_{s'}P(s'\mid s,a)\,V_{t+1}(s'),\\ V_t(s)&=\log\sum_a\exp Q_t(s,a),\\ \pi_t(a\mid s)&=\exp\big(Q_t(s,a)-V_t(s)\big).\end{aligned}$$<span class="eqno">(5.19)</span></div>
+  <p>The dual objective remains convex and its gradient remains $\mu_E-\mathbb{E}_{p_\pi}[\Phi]$.</p>
+</div>
+
+<div class="callout accent">
+  <span class="ct">The one-symbol difference</span>
+  <p>Compare (5.14) with (5.19). Naive MaxEnt takes a <em>soft</em> maximum over both actions and
+  successor states; maximum causal entropy takes a soft maximum over actions and a <em>plain
+  expectation</em> over successor states:</p>
+  $$\text{naive:}\ \ \log\sum_a\exp\Big(R+\log\sum_{s'}P\,e^{V}\Big)\qquad\qquad\text{causal:}\ \ \log\sum_a\exp\Big(R+\sum_{s'}P\,V\Big)$$
+  <p>They coincide exactly when $P$ is deterministic. In the gamble illustration above, the causal
+  backup scores both actions at $5$ and is correctly indifferent. Every modern method &mdash; soft
+  $Q$-learning, soft actor&ndash;critic, GAIL's entropy term, AIRL &mdash; uses the causal version.
+  When a paper says &ldquo;MaxEnt IRL&rdquo;, it almost always means this.</p>
+</div>
+
+<h4 id="forward-pass"><span class="sn">5.8</span>The forward pass: from a policy to expected features</h4>
+
+<p>The backward pass produced a policy. We still need $\mathbb{E}_{p_\pi}[\Phi]$, which requires
+knowing <em>where</em> that policy goes. That is a forward sweep.</p>
+
+<div class="thm">
+  <p><span class="lab">Proposition (forward state-visitation recursion).</span> Let
+  $d_t(s)=\Pr_{p_\pi}(s_t=s)$. Then $d_0$ is the initial distribution and</p>
+  <div class="eqn" id="eq-forward">$$d_{t+1}(s')=\sum_{s\in\mathcal{S}}\sum_{a\in\mathcal{A}}d_t(s)\,\pi_t(a\mid s)\,P(s'\mid s,a),$$<span class="eqno">(5.20)</span></div>
+  <p>whence</p>
+  <div class="eqn" id="eq-forward-expect">$$\mathbb{E}_{p_\pi}[\Phi]=\sum_{t=0}^{T-1}\sum_{s,a}d_t(s)\,\pi_t(a\mid s)\,\phi(s,a).$$<span class="eqno">(5.21)</span></div>
+</div>
+
+<div class="callout accent">
+  <span class="ct">Answer: where does knowledge of $P$ enter? (second and last place)</span>
+  <p>Equation (5.20). Together with the successor expectation in (5.19), these are the
+  <em>only</em> two consumers of $P$ in exact MaxEnt IRL. A backward pass computes <em>what the agent
+  would do</em>; a forward pass computes <em>where doing it takes them</em>. Both need the kernel;
+  neither needs anything else.</p>
+</div>
+
+<h4 id="occupancy"><span class="sn">5.9</span>Occupancy measures: the same object, better named</h4>
+
+<p>Equation (5.21) is a weighted average of $\phi$ over state&ndash;action pairs. Naming that
+weighting will pay for itself many times over.</p>
+
+<div class="defn">
+  <p><span class="lab">Definition (discounted occupancy measure).</span></p>
+  <div class="eqn" id="eq-occupancy">$$\rho_\pi(s,a)\triangleq(1-\gamma)\sum_{t=0}^\infty\gamma^t\Pr_\pi(s_t=s,a_t=a),$$<span class="eqno">(5.22)</span></div>
+  <p>a probability distribution over $\mathcal{S}\times\mathcal{A}$ (the factor $1-\gamma$ makes the
+  weights $\gamma^t$ sum to one). Then</p>
+  <div class="eqn" id="eq-occupancy-linear">$$\mu(\pi)=\frac1{1-\gamma}\sum_{s,a}\rho_\pi(s,a)\,\phi(s,a),\qquad J_R(\pi)=\frac1{1-\gamma}\sum_{s,a}\rho_\pi(s,a)\,R(s,a).$$<span class="eqno">(5.23)</span></div>
+</div>
+
+<div class="callout">
+  <span class="ct">Remark: occupancy is not action frequency</span>
+  <p>$\rho_\pi$ is a distribution over <em>pairs</em>. &ldquo;Brake&rdquo; in front of a pedestrian
+  and &ldquo;brake&rdquo; on an empty motorway are different events, because their states differ.
+  MaxEnt IRL never merely counts action labels.</p>
+</div>
+
+<p>Equation (5.23) says that return is a <strong>linear functional</strong> of occupancy. All of
+<a href="#part-5">Part V</a> is built on that sentence.</p>
+
+<h4 id="exact-algorithm"><span class="sn">5.10</span>The complete exact algorithm</h4>
+
+<p>Because the objective is convex, any diminishing-step gradient scheme converges to the global
+optimum in $w$. The per-iteration cost is $O(T|\mathcal{S}|^2|\mathcal{A}|)$ for each pass &mdash;
+linear in the horizon, quadratic in the number of states. That quadratic is the thing that will not
+survive contact with a real problem.</p>
+
+<figure class="diagram">
+<svg viewBox="0 0 720 300" role="img" aria-labelledby="fig-passes-title fig-passes-desc">
+  <title id="fig-passes-title">The two passes of exact maximum causal entropy IRL</title>
+  <desc id="fig-passes-desc">A backward pass computes the soft-optimal policy from the final time step to the first; a forward pass propagates state visitation from the first step to the last and yields the model's feature expectations. Both passes use the transition kernel P. The gradient compares the model's feature expectations with the expert's, which need no model.</desc>
+  <defs>
+    <marker id="ar-b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="svg-ab"/></marker>
+    <marker id="ar-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="svg-ar"/></marker>
+    <marker id="ar-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="svg-ag"/></marker>
+  </defs>
+  <text x="360" y="22" text-anchor="middle" font-size="12" class="svg-tm">The two passes are the only two uses of P: this is the entire content of Exit C</text>
+  <!-- backward pass -->
+  <rect x="30" y="34" width="300" height="120" rx="6" class="svg-back" stroke-width="1.2"/>
+  <text x="180" y="58" text-anchor="middle" font-size="14" class="svg-tb">Backward pass: from the end</text>
+  <text x="180" y="82" text-anchor="middle" font-size="12.5" class="svg-t">V_T &#8801; 0</text>
+  <text x="180" y="104" text-anchor="middle" font-size="12.5" class="svg-t">Q_t = R_w + &#931;_s&#8242; P(s&#8242;|s,a) V_t+1(s&#8242;)</text>
+  <text x="180" y="126" text-anchor="middle" font-size="12.5" class="svg-t">V_t = log &#931;_a exp Q_t  &#8594;  &#960;_t</text>
+  <line x1="275" y1="136" x2="85" y2="136" class="svg-lb" stroke-width="1.8" marker-end="url(#ar-b)"/>
+  <text x="180" y="150" text-anchor="middle" font-size="11" class="svg-tb">t = T&#8722;1, &#8230;, 0 &#183; uses P &#183; what the agent would do</text>
+  <!-- forward pass -->
+  <rect x="390" y="34" width="300" height="120" rx="6" class="svg-fwd" stroke-width="1.2"/>
+  <text x="540" y="58" text-anchor="middle" font-size="14" class="svg-tr">Forward pass: from the start</text>
+  <text x="540" y="82" text-anchor="middle" font-size="12.5" class="svg-t">d_0 = initial distribution</text>
+  <text x="540" y="104" text-anchor="middle" font-size="12.5" class="svg-t">d_t+1(s&#8242;) = &#931;_s,a d_t &#960;_t P(s&#8242;|s,a)</text>
+  <text x="540" y="126" text-anchor="middle" font-size="12.5" class="svg-t">&#956;&#770; = &#931;_t,s,a d_t &#960;_t &#966;</text>
+  <line x1="445" y1="136" x2="635" y2="136" class="svg-lr" stroke-width="1.8" marker-end="url(#ar-r)"/>
+  <text x="540" y="150" text-anchor="middle" font-size="11" class="svg-tr">t = 0, &#8230;, T&#8722;1 &#183; uses P &#183; where it takes them</text>
+  <!-- hand-over from backward to forward -->
+  <line x1="330" y1="94" x2="386" y2="94" class="svg-lb" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#ar-b)"/>
+  <text x="360" y="86" text-anchor="middle" font-size="11" class="svg-tb">&#960;_t</text>
+  <!-- outputs -->
+  <line x1="180" y1="154" x2="180" y2="196" class="svg-lb" stroke-width="1.8" marker-end="url(#ar-b)"/>
+  <line x1="540" y1="154" x2="540" y2="196" class="svg-lr" stroke-width="1.8" marker-end="url(#ar-r)"/>
+  <rect x="90" y="200" width="180" height="34" rx="6" class="svg-out svg-lb" stroke-width="1"/>
+  <text x="180" y="221" text-anchor="middle" font-size="12" class="svg-tb">Output: soft-optimal policy &#960;_t</text>
+  <rect x="450" y="200" width="180" height="34" rx="6" class="svg-out svg-lr" stroke-width="1"/>
+  <text x="540" y="221" text-anchor="middle" font-size="12" class="svg-tr">Output: model features &#956;&#770;</text>
+  <!-- gradient -->
+  <rect x="100" y="256" width="520" height="32" rx="6" class="svg-grad" stroke-width="1"/>
+  <text x="360" y="276" text-anchor="middle" font-size="12.5" class="svg-tg">Gradient step: w &#8592; w + &#951; (&#956;_E &#8722; &#956;&#770;); &#956;_E averages the demonstrations, no P needed</text>
+  <line x1="540" y1="234" x2="440" y2="256" class="svg-lg" stroke-width="1.2" marker-end="url(#ar-g)"/>
+  <line x1="180" y1="234" x2="280" y2="256" class="svg-lg" stroke-width="1.2" stroke-dasharray="3 3"/>
+</svg>
+<figcaption><b>Figure 1.</b> One iteration of exact maximum causal entropy IRL. The backward pass
+(5.19) turns the current reward into a soft-optimal policy; the forward pass (5.20) pushes the
+initial distribution through that policy to obtain the model's feature expectations. Each pass
+consumes $P$ once. The expert's $\mu_E$ is just an average over the demonstrations and needs no model
+at all.</figcaption>
+</figure>
+
+<div class="algo" id="alg-maxcausalent">
+  <div class="cap">Algorithm 2. Exact maximum causal entropy IRL (finite $\mathcal{S},\mathcal{A}$, known $P$)</div>
+  <ol>
+    <li><span class="kw">Require:</span> dynamics $\mathcal{M}$ with known $P$, features $\phi$, expert data $\mathcal{D}_E$, step size $\eta$</li>
+    <li>$\mu_E\gets\frac1m\sum_i\Phi(\tau^{(i)})$; initialise $w\gets0$</li>
+    <li><span class="kw">for</span> $k=1,2,\ldots$ until $\|\mu_E-\hat\mu\|$ is small <span class="kw">do</span></li>
+    <li class="i1">$R_w(s,a)\gets w^\top\phi(s,a)$ for all $(s,a)$</li>
+    <li class="i1"><span class="kw">backward pass:</span> $V_T\equiv0$; for $t=T-1,\ldots,0$ compute $Q_t,V_t,\pi_t$ by (5.19) <span class="cm">&#9655; uses $P$</span></li>
+    <li class="i1"><span class="kw">forward pass:</span> start from $d_0$; for $t=0,\ldots,T-1$ propagate $d_{t+1}$ by (5.20) <span class="cm">&#9655; uses $P$</span></li>
+    <li class="i1">$\hat\mu\gets\sum_{t,s,a}d_t(s)\,\pi_t(a\mid s)\,\phi(s,a)$</li>
+    <li class="i1">$w\gets w+\eta\,(\mu_E-\hat\mu)$ <span class="cm">&#9655; the learning rule (5.12)</span></li>
+    <li><span class="kw">end for</span></li>
+    <li><span class="kw">return</span> $w$ and the soft-optimal policy $\pi$</li>
+  </ol>
+</div>
+
+<div class="callout ledger">
+  <span class="ct">Ledger &middot; Exact MaxEnt / MaxCausalEnt IRL</span>
+  <dl>
+    <dt>Assumed (Coordinate 1)</dt>
+    <dd>The expert is <em>Boltzmann-rational</em>: it prefers better trajectories exponentially,
+    rather than always choosing the best. The reward is linear in a fixed $\phi$. Among all models
+    matching $\mu_E$, take the one with maximum causal entropy.</dd>
+    <dt>Approximated (Coordinate 2)</dt>
+    <dd>Nothing. $Z$ is exact via a backward pass; $\mathbb{E}[\Phi]$ is exact via a forward pass.
+    Requires finite $\mathcal{S},\mathcal{A}$ and the kernel $P$ in closed form.</dd>
+    <dt>Delivers</dt>
+    <dd>A unique $w$ (convex problem), a stochastic policy that degrades gracefully with expert
+    noise, and a likelihood &mdash; so the model can be compared, regularised and given priors, none
+    of which max-margin allowed.</dd>
+    <dt>Breaks when</dt>
+    <dd>$|\mathcal{S}|$ is large or continuous, the horizon is infinite, or $P$ is unknown. These are
+    <a href="#sec-6">Sections 6</a>, <a href="#sec-7">7</a> and <a href="#sec-8">8</a>.</dd>
+  </dl>
+</div>
+</section>
+</section>
+
+<!-- ============================================================ -->
+<!-- Part IV                                                       -->
+<!-- ============================================================ -->
+<section id="part-4">
+<h2 class="part"><span class="n">Part IV</span>Three exits from the safe corner</h2>
+
+<p>Algorithm 2 is a complete, correct, globally convergent IRL method. It is also unusable on any
+problem anyone actually cares about, for three separate reasons. Each reason is one of the
+assumptions we made on entering <a href="#part-3">Part III</a>, and each is a question every reader
+of the IRL literature ends up asking. We take them one at a time, and each time we ask the same two
+things: <strong>what survives, and what must be replaced?</strong></p>
+
+<section id="sec-6">
+<h3><span class="sn">6</span>Exit A: what changes when the problem is not finite?</h3>
+
+<p>&ldquo;Not finite&rdquo; hides three separate difficulties: an unbounded horizon, an unbounded
+number of states, and a continuum of actions. They fail differently.</p>
+
+<h4 id="infinite-horizon"><span class="sn">6.1</span>Infinite horizon: discounting, and why trajectory entropy dies</h4>
+
+<p>The finite-horizon derivation of Section 5 does not survive $T\to\infty$ as written, and the
+reason is not the return but the <em>entropy</em>. The causal entropy
+$\mathbb{E}\big[\sum_{t&lt;T}-\log\pi(a_t\mid s_t)\big]$ grows linearly in $T$ for any
+non-deterministic policy, so the objective diverges. The repair is the same discounting we already
+apply to reward.</p>
+
+<div class="defn">
+  <p><span class="lab">Definition (discounted causal entropy and the soft objective).</span></p>
+  <div class="eqn" id="eq-soft-objective">$$\mathcal{H}_\gamma(\pi)\triangleq\mathbb{E}_\pi\Big[\sum_{t=0}^\infty\gamma^t\big(-\log\pi(a_t\mid s_t)\big)\Big],\qquad J_R^\beta(\pi)\triangleq J_R(\pi)+\beta\,\mathcal{H}_\gamma(\pi).$$<span class="eqno">(6.1)</span></div>
+</div>
+
+<p>The temperature $\beta&gt;0$ is now explicit; Section 5 used $\beta=1$.</p>
+
+<div class="defn">
+  <p><span class="lab">Definition (soft Bellman operator).</span></p>
+  <div class="eqn" id="eq-soft-bellman">$$(\mathcal{B}_{\mathrm{soft}}Q)(s,a)\triangleq R(s,a)+\gamma\,\mathbb{E}_{s'\sim P(\cdot\mid s,a)}\Big[\beta\log\sum_{a'}\exp\big(Q(s',a')/\beta\big)\Big].$$<span class="eqno">(6.2)</span></div>
+</div>
+
+<p>Note that successors enter through a plain expectation: this is the discounted, stationary
+version of the <em>causal</em> backup (5.19), not of the naive one. Whether it still has a unique
+fixed point rests on one small lemma.</p>
+
+<div class="thm">
+  <p><span class="lab">Lemma (log-sum-exp is a non-expansion).</span> For
+  $x,y\in\mathbb{R}^{|\mathcal{A}|}$ and $\beta&gt;0$,</p>
+  $$\Big|\beta\log\sum_ae^{x_a/\beta}-\beta\log\sum_ae^{y_a/\beta}\Big|\le\|x-y\|_\infty.$$
+</div>
+
+<div class="derivation" data-der>
+<div class="dstep" data-step="1">
+  <div class="dh">Proof, step 1: a uniform bound</div>
+  <p>Let $\delta=\|x-y\|_\infty$. Then $x_a\le y_a+\delta$ for every $a$.</p>
+</div>
+<div class="dstep" data-step="2">
+  <div class="dh">Proof, step 2: exponentiate and sum</div>
+  <p>The exponential is increasing, so $e^{x_a/\beta}\le e^{\delta/\beta}e^{y_a/\beta}$ for every $a$,
+  and summing,</p>
+  $$\sum_ae^{x_a/\beta}\le e^{\delta/\beta}\sum_ae^{y_a/\beta}.$$
+</div>
+<div class="dstep" data-step="3">
+  <div class="dh">Proof, step 3: take $\beta\log$ of both sides</div>
+  <p>$\beta\log$ is increasing and turns the factor $e^{\delta/\beta}$ into an additive $\delta$:</p>
+  $$\beta\log\sum_ae^{x_a/\beta}\le\beta\log\sum_ae^{y_a/\beta}+\delta.$$
+  <p>Exchanging the roles of $x$ and $y$ gives the reverse inequality, and together they bound the
+  absolute difference by $\delta$. <span class="qed">&#8718;</span></p>
+</div>
+<button class="reveal-btn" type="button">Show next step</button>
+</div>
+
+<div class="thm">
+  <p><span class="lab">Theorem (soft value iteration converges).</span> $\mathcal{B}_{\mathrm{soft}}$
+  is a $\gamma$-contraction in $\|\cdot\|_\infty$. It therefore has a unique fixed point
+  $Q_{\mathrm{soft}}$, soft value iteration converges geometrically, and the soft-optimal policy</p>
+  $$\pi_{\mathrm{soft}}(a\mid s)\propto\exp\big(Q_{\mathrm{soft}}(s,a)/\beta\big)$$
+  <p>maximises the soft objective (6.1).</p>
+</div>
+<div class="proof">
+  <p><span class="lab">Proof.</span> For two $Q$-functions, the rewards cancel in
+  $\mathcal{B}_{\mathrm{soft}}Q_1-\mathcal{B}_{\mathrm{soft}}Q_2$. Apply the lemma pointwise inside
+  the expectation in (6.2), with $x=Q_1(s',\cdot)$ and $y=Q_2(s',\cdot)$, and use
+  $\sum_{s'}P(s'\mid s,a)=1$, exactly as in the hard contraction proof of Section 1.3.
+  <span class="qed">&#8718;</span></p>
+</div>
+
+<div class="callout">
+  <span class="ct">Remark: the temperature interpolates</span>
+  <p>Since</p>
+  $$\max_aQ(s,a)\;\le\;\beta\log\sum_ae^{Q(s,a)/\beta}\;\le\;\max_aQ(s,a)+\beta\log|\mathcal{A}|,$$
+  <p>the soft operator is within $\beta\log|\mathcal{A}|$ of $\mathcal{B}^\star$ everywhere. As
+  $\beta\to0$ we recover hard optimality and max-margin's behaviour model; as $\beta\to\infty$ the
+  policy becomes uniform and the demonstrations are treated as uninformative. <strong>The temperature
+  is a modelling choice on Coordinate 1</strong>: it says how rational you believe the expert to be.
+  Fitting $\beta$ from data is possible but is entangled with the scale of $R$, since $(R,\beta)$ and
+  $(cR,c\beta)$ give the same policy &mdash; one more instance of the identifiability theme.</p>
+</div>
+
+<div class="callout accent">
+  <span class="ct">What survived Exit A, part 1</span>
+  <p>The whole structure of Section 5 survives an infinite horizon, provided we use <em>discounted
+  causal</em> entropy and a stationary soft Bellman fixed point in place of a finite backward sweep.
+  What we lose is only the interpretation of $\log Z$ as the log-partition function of a finite
+  trajectory set; a soft value function takes its place. Nothing statistical changes.</p>
+</div>
+
+<h4 id="large-states"><span class="sn">6.2</span>Large or continuous state spaces</h4>
+
+<p>Here the loss is real. Both passes of Algorithm 2 are tabular sweeps costing
+$O(|\mathcal{S}|^2|\mathcal{A}|)$ per step. Three things break at once.</p>
+<ol>
+  <li><strong>The tables do not fit.</strong> $V$, $\pi$ and $d_t$ are arrays indexed by
+  $\mathcal{S}$. For continuous $\mathcal{S}$ they are functions and must be approximated &mdash; by
+  linear architectures or, in practice, neural networks. This reintroduces every hazard of the deadly
+  triad into the inner loop of IRL.</li>
+  <li><strong>Discretisation does not save you.</strong> An $\varepsilon$-net of $[0,1]^n$ has
+  $\varepsilon^{-n}$ cells. A ten-dimensional state at resolution $0.1$ is $10^{10}$ cells, and the
+  sweep is quadratic in that.</li>
+  <li><strong>Sums become integrals, and the reference measure becomes load-bearing.</strong> In (5.7),
+  $\sum_\tau q(\tau)(\cdot)$ becomes $\int(\cdot)\,dq(\tau)$. This is precisely where the
+  relative-entropy formulation of Section 5.1 pays off: $-\mathrm{KL}(p\|q)$ is well defined and
+  reparameterisation-invariant on a continuous space, whereas $-\int p\log p$ is neither. Had we begun
+  with the differential entropy, the objective would change value under a smooth change of
+  coordinates on $\mathcal{T}$ &mdash; an absurdity for a principle that is supposed to encode
+  ignorance.</li>
+</ol>
+
+<h4 id="continuous-actions"><span class="sn">6.3</span>Continuous actions</h4>
+
+<p>The soft maximum over actions, $\beta\log\sum_a\exp(Q/\beta)$, becomes
+$\beta\log\int_{\mathcal{A}}\exp\big(Q(s,a)/\beta\big)\,da$: an integral with no closed form for a
+general $Q$. The standard resolution is variational: represent the policy explicitly and fit it to
+the Boltzmann target,</p>
+<div class="eqn" id="eq-sac">$$\pi\;\leftarrow\;\arg\min_{\pi'\in\Pi_\theta}\;\mathrm{KL}\Big(\pi'(\cdot\mid s)\;\Big\|\;\tfrac{1}{Z(s)}\exp\big(Q(s,\cdot)/\beta\big)\Big),$$<span class="eqno">(6.3)</span></div>
+<p>which is exactly the policy-improvement step of soft actor&ndash;critic [Haarnoja et al. 2018], and
+an instance of the broader control-as-inference picture in which entropy-regularised RL is exact
+probabilistic inference in a graphical model [Levine 2018]. Note the structure: <strong>an
+intractable normaliser over actions is replaced by a learned sampler.</strong> We are about to meet
+the same move one level up, where an intractable normaliser over <em>trajectories</em> is replaced by
+a learned policy.</p>
+
+<h4 id="exit-a-summary"><span class="sn">6.4</span>Summary of Exit A</h4>
+
+<div class="tablewrap">
+<table class="min">
+<caption>Table 3. What happens to each object of Section 5 when the problem stops being finite.</caption>
+<thead><tr><th>Object</th><th>Finite case</th><th>Infinite / continuous case</th></tr></thead>
+<tbody>
+<tr><td>Entropy objective</td><td>causal entropy over $T$ steps</td><td>discounted causal entropy; relative to $q$</td></tr>
+<tr><td>Backward pass</td><td>exact sweep, $T$ steps</td><td>soft Bellman fixed point (the contraction survives)</td></tr>
+<tr><td>Soft maximum over actions</td><td>$\log\sum_a$</td><td>intractable integral; variational policy (SAC)</td></tr>
+<tr><td>Forward pass / $\rho_\pi$</td><td>exact array recursion</td><td>Monte Carlo rollouts or density models</td></tr>
+<tr><td>Partition function $Z$</td><td>finite sum, exact via dynamic programming</td><td>intractable; estimated or bypassed</td></tr>
+<tr><td>Convexity of the dual in $w$</td><td>holds</td><td>holds <em>if</em> the reward stays linear in $w$</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>The last row deserves emphasis: leaving the safe corner along Exit A alone does <em>not</em> cost
+us convexity. Convexity is lost at Exit B.</p>
+</section>
+
+<section id="sec-7">
+<h3><span class="sn">7</span>Exit B: must the features be hand-crafted?</h3>
+
+<p>Short answer: no, and modern methods do not hand-craft them. But the question hides a more useful
+one &mdash; <em>what was the fixed $\phi$ doing for us?</em> &mdash; and the honest answer is: quite a
+lot.</p>
+
+<h4 id="linear-buys"><span class="sn">7.1</span>What a fixed linear class buys</h4>
+<ol>
+  <li><strong>A sufficient statistic.</strong> By the proposition of Section 3.4, a policy is
+  summarised for all reward-evaluation purposes by $\mu(\pi)\in\mathbb{R}^d$. An infinite-dimensional
+  object collapses to $d$ numbers.</li>
+  <li><strong>Convexity.</strong> The convexity theorem of Section 5.4 needs $R$ to be linear in the
+  parameter. This is what makes MaxEnt IRL a well-behaved convex estimation problem.</li>
+  <li><strong>A class-wide guarantee.</strong> The feature-matching lemma (4.1) certifies performance
+  for <em>every</em> reward in the class at once, which is much stronger than certifying it for one
+  estimate.</li>
+  <li><strong>Interpretability.</strong> &ldquo;The expert weights collision risk eight times as
+  heavily as lane deviation&rdquo; is a sentence one can act on.</li>
+</ol>
+
+<h4 id="linear-costs"><span class="sn">7.2</span>What it costs</h4>
+
+<div class="callout warn">
+  <span class="ct">Misspecification is invisible from inside</span>
+  <p>Every guarantee above is quantified over $w\in\mathbb{R}^d$ with $\phi$ fixed. If the true reward
+  is not in $\mathrm{span}\{\phi_1,\ldots,\phi_d\}$, matching $\mu_E$ implies <em>nothing</em> about
+  $J_{R^\star}$. Worse, the fit will look fine: the residual lives in a direction the model cannot
+  see. Classical apprenticeship-learning results on driving worked because a human had already
+  encoded the task into features such as &ldquo;distance to the nearest car&rdquo; and
+  &ldquo;off-road indicator&rdquo;. The domain knowledge was in $\phi$, not in the algorithm.</p>
+</div>
+
+<h4 id="feature-ambiguity"><span class="sn">7.3</span>The ambiguity that appears when $\phi$ is learned</h4>
+
+<p>Suppose we learn $\phi_\eta$ and $w$ jointly. For any invertible $A\in\mathbb{R}^{d\times d}$,</p>
+<div class="eqn" id="eq-feature-ambiguity">$$w^\top\phi(s,a)=\big(A^{-\top}w\big)^\top\big(A\,\phi(s,a)\big),$$<span class="eqno">(7.1)</span></div>
+<p>so $(w,\phi)$ and $(A^{-\top}w,A\phi)$ are indistinguishable. Only the <em>scalar field</em> $R$ and
+the <em>span</em> of the features are meaningful; individual coordinates of $w$ are not. Statements
+such as &ldquo;the model learned that feature 3 matters&rdquo; are therefore meaningless without a
+convention that pins down $A$. This is a Coordinate-1 ambiguity <em>added</em> by learning features,
+on top of the reward ambiguity we already had.</p>
+
+<h4 id="general-gradient"><span class="sn">7.4</span>The good news: the learning rule does not change</h4>
+
+<p>One might fear that abandoning linearity forces a new derivation. It does not.</p>
+
+<div class="thm">
+  <p><span class="lab">Proposition (MaxEnt gradient for an arbitrary reward class).</span> Let
+  $R_\theta$ be any differentiable reward parameterisation, and let
+  $R_\theta(\tau)=\sum_t\gamma^tR_\theta(s_t,a_t)$. With
+  $p_\theta(\tau)\propto q(\tau)e^{R_\theta(\tau)}$, the log-likelihood
+  $L(\theta)=\frac1m\sum_iR_\theta(\tau^{(i)})-\log Z(\theta)$ (dropping the $\theta$-free
+  $\log q$ term, as in (5.10)) has gradient</p>
+  <div class="eqn" id="eq-general-grad">$$\nabla_\theta L(\theta)=\underbrace{\mathbb{E}_{\tau\sim\mathcal{D}_E}\big[\nabla_\theta R_\theta(\tau)\big]}_{\text{expert}}-\underbrace{\mathbb{E}_{\tau\sim p_\theta}\big[\nabla_\theta R_\theta(\tau)\big]}_{\text{current model}}.$$<span class="eqno">(7.2)</span></div>
+</div>
+
+<div class="derivation" data-der>
+<div class="dstep" data-step="1">
+  <div class="dh">Step 1: the expert term is immediate</div>
+  <p>The gradient of $\frac1m\sum_iR_\theta(\tau^{(i)})$ is the empirical average
+  $\mathbb{E}_{\mathcal{D}_E}[\nabla_\theta R_\theta]$. Everything interesting is in
+  $\nabla_\theta\log Z(\theta)$.</p>
+</div>
+<div class="dstep" data-step="2">
+  <div class="dh">Step 2: differentiate under the sum</div>
+  $$\nabla_\theta\log Z=\frac1Z\,\nabla_\theta\sum_\tau q(\tau)e^{R_\theta(\tau)}=\frac1Z\sum_\tau q(\tau)e^{R_\theta(\tau)}\,\nabla_\theta R_\theta(\tau).$$
+  <p class="dhint">$q(\tau)$ does not depend on $\theta$, so it passes straight through; the chain rule
+  on the exponential pulls out $\nabla_\theta R_\theta$.</p>
+</div>
+<div class="dstep" data-step="3">
+  <div class="dh">Step 3: recognise an expectation under the model</div>
+  <p>The weights $q(\tau)e^{R_\theta(\tau)}/Z$ are exactly $p_\theta(\tau)$, so</p>
+  $$\nabla_\theta\log Z(\theta)=\mathbb{E}_{\tau\sim p_\theta}\big[\nabla_\theta R_\theta(\tau)\big].$$
+  <p class="dhint">Subtracting gives (7.2). In the linear case $R_w=w^\top\phi$ we have
+  $\nabla_wR_w(\tau)=\Phi(\tau)$, and (7.2) reduces exactly to the learning rule (5.12). <span class="qed">&#8718;</span></p>
+</div>
+<button class="reveal-btn" type="button">Show next step</button>
+</div>
+
+<p>Equation (7.2) is (5.12) with $\Phi$ replaced by $\nabla_\theta R_\theta$. <strong>Feature matching
+was never the principle; matching the sufficient statistics of the reward class was.</strong> This
+observation is what makes deep MaxEnt IRL [Wulfmeier et al. 2015] and guided cost learning [Finn et
+al. 2016] possible with no new theory.</p>
+
+<h4 id="convexity-lost"><span class="sn">7.5</span>What is lost: convexity, and the need for inductive bias</h4>
+
+<p>With $R_\theta$ nonlinear, $L$ is no longer concave. We get local optima, sensitivity to
+initialisation, and &mdash; most importantly &mdash; the capacity to overfit. A sufficiently
+expressive $R_\theta$ can memorise the demonstrations: assign huge reward exactly on the observed
+state&ndash;action pairs and zero elsewhere. That reward explains the data perfectly and is
+useless.</p>
+
+<p>Useful counter-pressures, all of which are Coordinate-1 commitments:</p>
+<ul>
+  <li><strong>Architectural restriction.</strong> Most powerfully, making $R$ depend on the state
+  only, $R_\theta(s)$. We will see in <a href="#sec-11">Section 11</a> that this is not a convenience
+  but a necessary condition for a transfer guarantee.</li>
+  <li><strong>Smoothness and norm penalties</strong> on $R_\theta$; gradient penalties on a
+  discriminator.</li>
+  <li><strong>Bottlenecks</strong>, including explicit information bottlenecks on the reward
+  representation.</li>
+  <li><strong>Multi-task structure</strong>: several tasks sharing one representation with different
+  weights, which restores identifiability of the shared part.</li>
+  <li><strong>Priors</strong>, i.e. Bayesian IRL [Ramachandran &amp; Amir 2007], which makes the
+  selection principle explicit rather than implicit.</li>
+</ul>
+
+<div class="callout accent">
+  <span class="ct">Answer to Exit B</span>
+  <p>No, $\phi$ need not be hand-crafted, and the maximum-entropy learning rule (7.2) is unchanged
+  when it is not. What changes is that the estimation problem stops being convex and starts requiring
+  regularisation, and that a new reparameterisation ambiguity is introduced. The choice of reward
+  class does not disappear when features are learned &mdash; it becomes the choice of
+  <em>architecture</em>. In <a href="#part-5">Part V</a> it becomes the choice of
+  <em>discriminator</em>, which is why we insist that a discriminator architecture is a reward class
+  in disguise.</p>
+</div>
+</section>
+
+<section id="sec-8">
+<h3><span class="sn">8</span>Exit C: what if we do not know $P$?</h3>
+
+<p>This is the question that most often derails a first reading, because two entirely different
+estimation problems are usually collapsed into one. Separate them first.</p>
+
+<div class="callout">
+  <span class="ct">Two statistical jobs, frequently confused</span>
+  <p><strong>Job 1 &mdash; estimate the expert's statistics $\rho_E$ (or $\mu_E$).</strong> Data: the
+  demonstrations. It needs no model and no interaction: it is an average over $\mathcal{D}_E$. Its
+  weakness is <em>support</em> &mdash; it says nothing about states the expert never visited.</p>
+  <p><strong>Job 2 &mdash; estimate the <em>current candidate policy's</em> statistics
+  $\rho_{\pi_w}$.</strong> This is not in the data at all: $\pi_w$ changes at every gradient step. It
+  requires either a model of $P$ (to compute) or the ability to interact with the environment (to
+  sample). This is the job that makes IRL expensive, and the only one that needs $P$.</p>
+</div>
+
+<p>Recall from Sections <a href="#computing-z">5.5</a> and <a href="#forward-pass">5.8</a> that $P$ is
+consumed in exactly two places, both belonging to Job 2: the expectation over successors in the
+backward pass (5.19), and the propagation of visitation in the forward pass (5.20). Everything below
+is about replacing those two sums.</p>
+
+<h4 id="four-regimes"><span class="sn">8.1</span>Four regimes</h4>
+
+<div class="tablewrap">
+<table class="min">
+<caption>Table 4. What to do about Job 2, depending on what you have.</caption>
+<thead><tr><th>What you have</th><th>What to do about Job 2</th><th>Price</th></tr></thead>
+<tbody>
+<tr><td>$P$ in closed form, finite $\mathcal{S}$</td><td>Exact backward and forward passes (Algorithm 2)</td><td>$O(T|\mathcal{S}|^2|\mathcal{A}|)$ per gradient step</td></tr>
+<tr><td>A simulator you can reset</td><td>Roll out $\pi_w$ and estimate $\mathbb{E}[\Phi]$ by Monte Carlo. You never need to <em>write down</em> $P$</td><td>Variance; many rollouts per gradient step</td></tr>
+<tr><td>Only the real environment</td><td>Fit $\widehat P$ and plan, or estimate occupancies directly from on-policy data</td><td>Exploration cost; model bias; safety risk</td></tr>
+<tr><td>Only a fixed offline dataset</td><td>Job 2 is not identifiable off-support. Requires pessimism, conservative penalties, or restricting the policy class</td><td>Genuinely hard; an active research area</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="callout">
+  <span class="ct">Remark: a simulator is not a model, and that is the point</span>
+  <p>The second row is the one that dissolves most of the confusion. &ldquo;Model-free&rdquo; does
+  not mean &ldquo;dynamics-free&rdquo;. It means you never need $P$ as an object; you need only the
+  ability to draw $s'\sim P(\cdot\mid s,a)$. Almost every modern IRL method lives in this row.</p>
+</div>
+
+<h4 id="sampling-gradient"><span class="sn">8.2</span>Sampling the gradient</h4>
+
+<p>The Monte Carlo replacement is direct. Draw $n$ rollouts $\tau_1,\ldots,\tau_n$ from the current
+soft policy and set</p>
+<div class="eqn" id="eq-mc-grad">$$\widehat{\mathbb{E}_{p_w}[\Phi]}=\frac1n\sum_{j=1}^n\Phi(\tau_j),\qquad\widehat{\nabla_wL}=\mu_E-\frac1n\sum_{j=1}^n\Phi(\tau_j),$$<span class="eqno">(8.1)</span></div>
+<p>which is unbiased and consistent. The catch is that the current soft policy must itself be obtained
+by an inner forward-RL solve at every outer step &mdash; extremely wasteful, since $w$ changes only
+slightly from one step to the next.</p>
+
+<p>Guided cost learning [Finn et al. 2016] removes the waste with importance sampling: maintain a
+sampler $\pi_{\mathrm{samp}}$, reuse its rollouts, and correct with self-normalised weights</p>
+<div class="eqn" id="eq-gcl">$$\omega_j\propto\frac{e^{R_\theta(\tau_j)}}{\pi_{\mathrm{samp}}(\tau_j)},\qquad\widehat{\nabla_\theta L}=\mathbb{E}_{\mathcal{D}_E}[\nabla_\theta R_\theta]-\sum_j\frac{\omega_j}{\sum_{j'}\omega_{j'}}\,\nabla_\theta R_\theta(\tau_j),$$<span class="eqno">(8.2)</span></div>
+<p>interleaving improvement of $\pi_{\mathrm{samp}}$ towards the soft optimum. Here
+$\pi_{\mathrm{samp}}(\tau_j)$ is shorthand for the product of the sampler's action probabilities
+along $\tau_j$. Why is that enough &mdash; where did the dynamics go?</p>
+
+<div class="derivation" data-der>
+<div class="dstep" data-step="1">
+  <div class="dh">Step 1: what we want, and what we have</div>
+  <p>We want $\mathbb{E}_{\tau\sim p_\theta}[\nabla_\theta R_\theta(\tau)]$, but we only have samples
+  from the sampler's trajectory distribution $p_{\mathrm{samp}}$. Importance sampling reweights them:</p>
+  $$\mathbb{E}_{p_\theta}[g]=\mathbb{E}_{p_{\mathrm{samp}}}\Big[\frac{p_\theta(\tau)}{p_{\mathrm{samp}}(\tau)}\,g(\tau)\Big].$$
+</div>
+<div class="dstep" data-step="2">
+  <div class="dh">Step 2: write both trajectory densities out</div>
+  <p>The model and the sampler share the same dynamics factor $q(\tau)$:</p>
+  $$p_\theta(\tau)=\frac{q(\tau)\,e^{R_\theta(\tau)}}{Z(\theta)},\qquad p_{\mathrm{samp}}(\tau)=q(\tau)\prod_t\pi_{\mathrm{samp}}(a_t\mid s_t).$$
+</div>
+<div class="dstep" data-step="3">
+  <div class="dh">Step 3: $q$ cancels, so $P$ is never needed</div>
+  $$\frac{p_\theta(\tau)}{p_{\mathrm{samp}}(\tau)}=\frac{1}{Z(\theta)}\cdot\frac{e^{R_\theta(\tau)}}{\prod_t\pi_{\mathrm{samp}}(a_t\mid s_t)}.$$
+  <p>Every transition probability has cancelled. The remaining unknown constant $Z(\theta)$ is common
+  to all samples, so it disappears when the weights are normalised by $\sum_{j'}\omega_{j'}$. That is
+  (8.2): computable from rewards and the sampler's own action probabilities alone.</p>
+  <p class="dhint">The price: when $\pi_{\mathrm{samp}}$ drifts away from $p_\theta$ the weights
+  degenerate (a few samples carry all the mass), which is the practical failure mode of the method.</p>
+</div>
+<button class="reveal-btn" type="button">Show next step</button>
+</div>
+
+<h4 id="support-exploration"><span class="sn">8.3</span>Support, exploration, and model error</h4>
+<ul>
+  <li><strong>Support.</strong> A transition never attempted cannot be estimated. If $\rho_E$ has
+  support the learner never visits (or vice versa), the comparison driving (5.12) is being made on
+  incomparable sets. This is the deep reason imitation degrades off the expert's distribution, and
+  the origin of compounding error in behavioural cloning [Bagnell 2014].</li>
+  <li><strong>Model error compounds.</strong> If one fits $\widehat P$ and plans in it, errors
+  accumulate over the effective horizon: a per-step total-variation error $\varepsilon$ produces an
+  occupancy error of order $\varepsilon/(1-\gamma)$ and hence a <em>biased</em> reward gradient. Bias
+  does not average away over gradient steps the way variance does.</li>
+  <li><strong>Interaction may be unacceptable.</strong> Exploration in surgery, aviation or finance
+  has costs that no sample-complexity bound captures.</li>
+</ul>
+
+<div class="callout">
+  <span class="ct">A practical decision rule</span>
+  <p>Demand exact transition probabilities only when the algorithm asks for exact
+  dynamic-programming expectations. If you can <em>sample</em> transitions, every such expectation
+  can be estimated without ever writing $P$ down. What you pay is sample complexity, variance, a
+  coverage requirement, and possibly interaction risk. What you do <em>not</em> pay is any change to
+  the IRL objective itself: Coordinate 1 is untouched by Exit C.</p>
+</div>
+
+<h4 id="pivot"><span class="sn">8.4</span>The pivot: from estimating an expectation to estimating a ratio</h4>
+
+<p>Here is the idea that generates the rest of this tutorial.</p>
+
+<p>The gradient (5.12) asks us to compare two expectations of a <em>known</em> function $\phi$ under
+two <em>unknown</em> distributions, $\rho_E$ and $\rho_\pi$. We have samples from both: the
+demonstrations give samples of $\rho_E$, and rollouts give samples of $\rho_\pi$. So the real task
+is: <em>given samples from two distributions, quantify and reduce their discrepancy.</em></p>
+
+<p>Machine learning has an extremely well-developed tool for exactly that task, and it is not
+integration. It is <strong>binary classification</strong>. A classifier trained to distinguish
+samples of $\rho_E$ from samples of $\rho_\pi$ recovers, at its optimum, the density ratio between
+them &mdash; and the density ratio is precisely the discrepancy signal we wanted. No partition
+function, no transition kernel, no enumeration.</p>
+
+<p>That substitution is GAIL. We now make it precise.</p>
+</section>
+</section>
+
+<!-- ============================================================ -->
+<!-- Part V                                                        -->
+<!-- ============================================================ -->
+<section id="part-5">
+<h2 class="part"><span class="n">Part V</span>Adversarial methods</h2>
+
+<section id="sec-9">
+<h3><span class="sn">9</span>Occupancy measures: the right change of variables</h3>
+
+<p>Sections 4 and 5 both optimise over policies, and both objectives turned out to depend on the
+policy only through averages of the form $\sum_{s,a}\rho_\pi(s,a)(\cdot)$. That is a strong hint that
+$\rho$, not $\pi$, is the natural variable. Changing to it converts IRL into a convex-duality problem
+and makes GAIL a theorem rather than an analogy.</p>
+
+<div class="defn">
+  <p><span class="lab">Definition (the occupancy polytope).</span></p>
+  <div class="eqn" id="eq-occ-polytope">$$\mathcal{D}\triangleq\Big\{\rho\in\mathbb{R}^{\mathcal{S}\times\mathcal{A}}_{\ge0}\;:\;\sum_a\rho(s,a)=(1-\gamma)\,d_0(s)+\gamma\sum_{s',a'}P(s\mid s',a')\,\rho(s',a')\quad\forall s\Big\},$$<span class="eqno">(9.1)</span></div>
+  <p>the set of non-negative measures satisfying the <strong>Bellman flow</strong> constraints: the
+  (discounted) mass flowing out of each state equals the mass starting there plus the mass flowing
+  in.</p>
+</div>
+
+<div class="thm">
+  <p><span class="lab">Theorem (policies and occupancies are the same thing).</span> The map
+  $\pi\mapsto\rho_\pi$ defined by (5.22) is a bijection from stationary policies onto $\mathcal{D}$,
+  with inverse</p>
+  <div class="eqn" id="eq-occ-inverse">$$\pi_\rho(a\mid s)=\frac{\rho(s,a)}{\sum_{a'}\rho(s,a')}.$$<span class="eqno">(9.2)</span></div>
+  <p>$\mathcal{D}$ is a compact convex polytope.</p>
+</div>
+
+<p>This is classical [Puterman 1994; Syed et al. 2008]. (For states that are never reached, the
+denominator in (9.2) is zero and the policy there is arbitrary; such states do not affect $\rho$.)
+Three consequences do all the work:</p>
+<ol>
+  <li><strong>Return is linear in $\rho$:</strong> $J_R(\pi)=\frac{1}{1-\gamma}\langle R,\rho_\pi\rangle$
+  by (5.23). Forward RL is therefore a linear program over $\mathcal{D}$.</li>
+  <li><strong>Matching occupancy is matching behaviour:</strong> by the bijection,
+  $\rho_\pi=\rho_E$ if and only if $\pi=\pi_E$ (on the states the expert visits). Imitation is
+  exactly a distribution-matching problem, with no reward mentioned.</li>
+  <li><strong>Mixtures are legal:</strong> $\mathcal{D}$ is convex, so
+  $\rho_{\tilde\pi}=\sum_i\lambda_i\rho_{\pi_i}$ is realisable &mdash; which is what justified the
+  mixed policy returned by Algorithm 1.</li>
+</ol>
+
+<p>Finally, the discounted causal entropy is also a function of $\rho$ alone, and a concave one:</p>
+<div class="eqn" id="eq-occ-entropy">$$\bar{\mathcal{H}}(\rho)\;=\;-\sum_{s,a}\rho(s,a)\log\frac{\rho(s,a)}{\sum_{a'}\rho(s,a')},$$<span class="eqno">(9.3)</span></div>
+<p>so &ldquo;entropy-regularised RL&rdquo; is a concave maximisation over a polytope. This claim is
+worth deriving, because it is what lets all of Part V move from optimising over policies to
+optimising over occupancies.</p>
+
+<div class="derivation" data-der>
+<div class="dstep" data-step="1">
+  <div class="dh">Step 1: write the entropy as a sum over state&ndash;action pairs</div>
+  <p>The discounted causal entropy (6.1) is the discounted expectation of $-\log\pi(a_t\mid s_t)$.
+  Grouping by the pair visited at each time step,</p>
+  $$\mathcal{H}_\gamma(\pi)=\sum_{s,a}\Big[\sum_{t\ge0}\gamma^t\Pr_\pi(s_t=s,a_t=a)\Big]\big(-\log\pi(a\mid s)\big).$$
+  <p class="dhint">The bracket is the occupancy up to normalisation:
+  $\sum_t\gamma^t\Pr_\pi(s_t=s,a_t=a)=\rho_\pi(s,a)/(1-\gamma)$.</p>
+</div>
+<div class="dstep" data-step="2">
+  <div class="dh">Step 2: replace the policy by the occupancy too</div>
+  <p>By the inverse map (9.2), $\pi(a\mid s)=\rho(s,a)/\sum_{a'}\rho(s,a')$. Substituting,</p>
+  $$\mathcal{H}_\gamma(\pi)=\frac{1}{1-\gamma}\sum_{s,a}\rho_\pi(s,a)\Big(-\log\frac{\rho_\pi(s,a)}{\sum_{a'}\rho_\pi(s,a')}\Big)=\frac{1}{1-\gamma}\,\bar{\mathcal{H}}(\rho_\pi).$$
+</div>
+<div class="dstep" data-step="3">
+  <div class="dh">Step 3: concavity via the perspective</div>
+  <p>Fix a state $s$ and write $c_s=\sum_{a'}\rho(s,a')$. That state's contribution to (9.3) is
+  $c_s\cdot H\big(\rho(s,\cdot)/c_s\big)$, where $H$ is the Shannon entropy of a distribution over
+  actions. This is the <strong>perspective</strong> of the concave function $H$, and perspectives
+  preserve concavity. Summing over states, $\bar{\mathcal{H}}$ is concave in $\rho$.</p>
+  <p class="dhint">So every ingredient of the entropy-regularised objective &mdash; return (linear) and
+  entropy (concave) &mdash; is a function of $\rho$, and the feasible set $\mathcal{D}$ is a polytope.
+  The constant $\frac1{1-\gamma}$ is absorbed into the temperature.</p>
+</div>
+<button class="reveal-btn" type="button">Show next step</button>
+</div>
+</section>
+
+<section id="sec-10">
+<h3><span class="sn">10</span>GAIL: imitation as density-ratio estimation</h3>
+
+<h4 id="irl-psi"><span class="sn">10.1</span>IRL with an explicit reward regulariser</h4>
+
+<p>Following Ho and Ermon's variational treatment (2016), write IRL abstractly. A reward is good if
+the expert scores well under it and the best achievable policy does not score much better &mdash;
+that is, if the reward <em>explains the gap</em>. Add a convex regulariser $\psi$ on rewards to keep
+the problem bounded:</p>
+<div class="eqn" id="eq-irl-psi">$$\mathrm{IRL}_\psi(\pi_E)=\arg\max_R\;-\psi(R)+\Big(\min_\pi\;-\beta\bar{\mathcal{H}}(\rho_\pi)-\langle R,\rho_\pi\rangle\Big)+\langle R,\rho_E\rangle.$$<span class="eqno">(10.1)</span></div>
+<p>Without $\psi$ this is exactly the ill-posed problem of <a href="#sec-3">Section 3</a>: scaling up
+any reward that separates the expert makes the objective arbitrarily large. $\psi$ <em>is</em> the
+selection principle, written down explicitly for once.</p>
+
+<div class="thm">
+  <p><span class="lab">Theorem (Ho &amp; Ermon 2016).</span> Running RL on the reward returned by
+  (10.1) yields</p>
+  <div class="eqn" id="eq-rl-irl">$$\mathrm{RL}\circ\mathrm{IRL}_\psi(\pi_E)=\arg\min_\pi\;-\beta\bar{\mathcal{H}}(\rho_\pi)+\psi^*(\rho_\pi-\rho_E),$$<span class="eqno">(10.2)</span></div>
+  <p>where $\psi^*$ is the convex conjugate of $\psi$.</p>
+</div>
+
+<div class="callout accent">
+  <span class="ct">Read the theorem slowly</span>
+  <p>It says that the whole IRL-then-RL pipeline is <em>equivalent</em> to a single
+  occupancy-matching problem, in which the choice of reward regulariser $\psi$ becomes the choice of
+  <em>divergence</em> $\psi^*$ used to compare $\rho_\pi$ with $\rho_E$. The intermediate reward is a
+  computational device that can be eliminated. Everything below is a choice of $\psi$.</p>
+</div>
+
+<h4 id="two-psi"><span class="sn">10.2</span>Two choices of $\psi$</h4>
+
+<p><strong>(i) A constant on a linear class.</strong> Let $\psi$ be $0$ if $R=w^\top\phi$ with
+$\|w\|_2\le1$ and $+\infty$ otherwise. Then $\psi^*$ is the support function of that set, and (10.2)
+becomes</p>
+<div class="eqn" id="eq-psi-linear">$$\min_\pi\max_{\|w\|_2\le1}w^\top\big(\mu(\pi)-\mu_E\big)=\min_\pi\|\mu(\pi)-\mu_E\|_2,$$<span class="eqno">(10.3)</span></div>
+<p>which is apprenticeship learning (<a href="#sec-4">Section 4</a>) recovered exactly. Its weakness is
+now visible as a property of $\psi^*$: it is a hard constraint, forcing exact feature matching
+within a small class, and it treats any $\rho_\pi$ that differs from $\rho_E$ only outside that class
+as a perfect match.</p>
+
+<p><strong>(ii) A smooth penalty on the expert's own reward values.</strong> Ho and Ermon choose
+$\psi_{\mathrm{GA}}(R)=\mathbb{E}_{\rho_E}[g(R(s,a))]$ for a particular convex $g$, whose conjugate
+is a Jensen&ndash;Shannon divergence in variational form:</p>
+<div class="eqn" id="eq-psi-ga">$$\psi_{\mathrm{GA}}^*(\rho_\pi-\rho_E)=\max_{D:\mathcal{S}\times\mathcal{A}\to(0,1)}\;\mathbb{E}_{\rho_E}\big[\log D(s,a)\big]+\mathbb{E}_{\rho_\pi}\big[\log(1-D(s,a))\big].$$<span class="eqno">(10.4)</span></div>
+<p>This regulariser penalises rewards that are large on expert pairs, is defined for <em>all</em>
+rewards rather than a fixed span, and &mdash; crucially &mdash; its conjugate is computable from
+samples alone.</p>
+
+<h4 id="gail-objective"><span class="sn">10.3</span>The GAIL objective</h4>
+
+<div class="callout accent">
+  <span class="ct">GAIL (Ho &amp; Ermon, 2016)</span>
+  <div class="eqn" id="eq-gail">$$\min_\pi\max_D\;\;\mathbb{E}_{(s,a)\sim\rho_E}\big[\log D(s,a)\big]+\mathbb{E}_{(s,a)\sim\rho_\pi}\big[\log\big(1-D(s,a)\big)\big]-\beta\bar{\mathcal{H}}(\rho_\pi).$$<span class="eqno">(10.5)</span></div>
+  <p><strong>Convention, fixed for the rest of this tutorial:</strong> $D(s,a)$ is the estimated
+  probability that the pair came <strong>from the expert</strong>. (Ho and Ermon's paper uses the
+  opposite labelling; the two objectives are related by $D\mapsto1-D$. Mixing the conventions is the
+  single most common source of sign confusion in this literature.)</p>
+</div>
+
+<div class="thm">
+  <p><span class="lab">Proposition (the discriminator estimates a density ratio).</span> For fixed
+  $\pi$, the inner maximum of (10.5) is attained at</p>
+  <div class="eqn" id="eq-dstar">$$D^\star(s,a)=\frac{\rho_E(s,a)}{\rho_E(s,a)+\rho_\pi(s,a)},$$<span class="eqno">(10.6)</span></div>
+  <p>and the optimal value equals $2\,\mathrm{JS}(\rho_E\|\rho_\pi)-\log4$. Hence GAIL is</p>
+  <div class="eqn" id="eq-gail-js">$$\min_\pi\;2\,\mathrm{JS}(\rho_E\|\rho_\pi)-\beta\bar{\mathcal{H}}(\rho_\pi).$$<span class="eqno">(10.7)</span></div>
+</div>
+
+<div class="derivation" data-der>
+<div class="dstep" data-step="1">
+  <div class="dh">Step 1: for fixed $\pi$, the inner problem is pointwise</div>
+  <p>Write both expectations as sums over pairs. Since $D$ can be chosen independently at every
+  $(s,a)$, we maximise separately, for each pair,</p>
+  $$\rho_E(s,a)\log D+\rho_\pi(s,a)\log(1-D),\qquad D\in(0,1).$$
+  <p class="dhint">A non-negative combination of $\log D$ and $\log(1-D)$ is concave in $D$, so a
+  stationary point is the maximum.</p>
+</div>
+<div class="dstep" data-step="2">
+  <div class="dh">Step 2: set the derivative to zero</div>
+  $$\frac{\rho_E}{D}-\frac{\rho_\pi}{1-D}=0\quad\Longleftrightarrow\quad\rho_E(1-D)=\rho_\pi D.$$
+</div>
+<div class="dstep" data-step="3">
+  <div class="dh">Step 3: solve for the optimal discriminator</div>
+  $$D^\star(s,a)=\frac{\rho_E(s,a)}{\rho_E(s,a)+\rho_\pi(s,a)}.$$
+  <p class="dhint">This is the posterior probability of &ldquo;expert&rdquo; under equal priors, and its
+  log-odds are the log density ratio:
+  $\log\frac{D^\star}{1-D^\star}=\log\frac{\rho_E}{\rho_\pi}$.</p>
+</div>
+<div class="dstep" data-step="4">
+  <div class="dh">Step 4: substitute back to obtain Jensen&ndash;Shannon</div>
+  <p>With the mixture $m=\frac12(\rho_E+\rho_\pi)$, we have $\frac{\rho_E}{\rho_E+\rho_\pi}=\frac{\rho_E}{2m}$, so the optimal value is</p>
+  $$\sum_{s,a}\Big[\rho_E\log\frac{\rho_E}{2m}+\rho_\pi\log\frac{\rho_\pi}{2m}\Big]=\mathrm{KL}(\rho_E\|m)+\mathrm{KL}(\rho_\pi\|m)-2\log2=2\,\mathrm{JS}(\rho_E\|\rho_\pi)-\log4.$$
+  <p>The policy therefore minimises a Jensen&ndash;Shannon divergence between occupancies, minus the
+  entropy bonus. <strong>An intractable integral has been replaced by a classification
+  problem.</strong> <span class="qed">&#8718;</span></p>
+</div>
+<button class="reveal-btn" type="button">Show next step</button>
+</div>
+
+<h4 id="gail-reward"><span class="sn">10.4</span>Turning the discriminator into a reward</h4>
+
+<p>The policy player minimises $\mathbb{E}_{\rho_\pi}[\log(1-D)]$; equivalently, it maximises the
+return of the surrogate reward</p>
+<div class="eqn" id="eq-gail-reward">$$\hat r(s,a)=-\log\big(1-D(s,a)\big)\;\in\;(0,\infty).$$<span class="eqno">(10.8)</span></div>
+<p>Any policy-gradient method (TRPO, PPO) can then be run on $\hat r$.</p>
+
+<div class="callout warn">
+  <span class="ct">Surrogate rewards are not interchangeable</span>
+  <p>Three surrogates appear in practice, and they are <em>different functions</em>:</p>
+  <div class="tablewrap">
+  <table class="min">
+  <thead><tr><th>Surrogate</th><th>Range</th><th>Implicit bias</th></tr></thead>
+  <tbody>
+  <tr><td>$-\log(1-D)$</td><td>$(0,+\infty)$</td><td>always positive: encourages <em>surviving</em> longer</td></tr>
+  <tr><td>$\log D$</td><td>$(-\infty,0)$</td><td>always negative: encourages <em>terminating</em> sooner</td></tr>
+  <tr><td>$\log D-\log(1-D)$</td><td>$(-\infty,\infty)$</td><td>the true log-odds; unbiased in sign</td></tr>
+  </tbody>
+  </table>
+  </div>
+  <p>On tasks with variable episode length these choices change the learned behaviour markedly,
+  independently of anything to do with imitation. A text that says &ldquo;use the log-odds&rdquo; and
+  an equation that uses $-\log(1-D)$ are not describing the same algorithm. AIRL uses the log-odds
+  form, for reasons that will turn out to be structural rather than cosmetic.</p>
+</div>
+
+<div class="algo" id="alg-gail">
+  <div class="cap">Algorithm 3. GAIL (Ho &amp; Ermon, 2016)</div>
+  <ol>
+    <li><span class="kw">Require:</span> expert data $\mathcal{D}_E$, an environment sampler (no $P$ needed), initial policy $\pi_\vartheta$, discriminator $D_\varphi$</li>
+    <li><span class="kw">for</span> $k=1,2,\ldots$ <span class="kw">do</span></li>
+    <li class="i1">collect rollouts $\mathcal{B}\sim\pi_\vartheta$ by interacting with the environment</li>
+    <li class="i1"><span class="kw">discriminator step:</span> ascend $\nabla_\varphi\big[\mathbb{E}_{\mathcal{D}_E}\log D_\varphi+\mathbb{E}_{\mathcal{B}}\log(1-D_\varphi)\big]$</li>
+    <li class="i1"><span class="kw">policy step:</span> one TRPO/PPO update on the reward $\hat r=-\log(1-D_\varphi)$ with entropy bonus $\beta$</li>
+    <li><span class="kw">end for</span></li>
+    <li><span class="kw">return</span> $\pi_\vartheta$</li>
+  </ol>
+</div>
+
+<h4 id="gail-limits"><span class="sn">10.5</span>What GAIL does not give you</h4>
+
+<div class="callout warn">
+  <span class="ct">At convergence, the discriminator contains no reward information</span>
+  <p>If imitation succeeds, then $\rho_\pi=\rho_E$, so $D^\star\equiv\frac12$ and the surrogate reward
+  (10.8) is the <em>constant</em> $\log2$. A constant reward makes every policy optimal
+  (<a href="#sec-3">Section 3</a>). There is therefore literally nothing to extract at the end of a
+  successful GAIL run.</p>
+  <p>Any reward-like signal GAIL exhibits exists only <em>during</em> training, as a by-product of the
+  current mismatch between learner and expert. It is a function of the optimisation trajectory, not
+  of the task. This &mdash; not a vague appeal to &ldquo;shaping terms&rdquo; &mdash; is the precise
+  reason GAIL does not transfer.</p>
+</div>
+
+<div class="callout ok">
+  <span class="ct">Check it by hand</span>
+  <p>Let the occupancies be supported on just two pairs, with $\rho_E=(0.6,\,0.4)$.</p>
+  <div class="tablewrap">
+  <table class="min">
+  <thead><tr><th>Situation</th><th>$\rho_\pi$</th><th>$D^\star=\frac{\rho_E}{\rho_E+\rho_\pi}$</th><th>Log-odds $\log\frac{D^\star}{1-D^\star}$</th><th>$-\log(1-D^\star)$</th></tr></thead>
+  <tbody>
+  <tr><td>During training</td><td>$(0.2,\,0.8)$</td><td>$(0.750,\,0.333)$</td><td>$(1.099,\,-0.693)$</td><td>$(1.386,\,0.405)$</td></tr>
+  <tr><td>At convergence</td><td>$(0.6,\,0.4)$</td><td>$(0.5,\,0.5)$</td><td>$(0,\,0)$</td><td>$(0.693,\,0.693)$</td></tr>
+  </tbody>
+  </table>
+  </div>
+  <p>In the first row the log-odds equal $\log(\rho_E/\rho_\pi)=(\log3,\,\log\frac12)$ component by
+  component, and the surrogate reward varies across pairs: it <em>looks</em> like a reward. In the
+  second row imitation has succeeded, $D^\star\equiv\frac12$, and the surrogate is the constant
+  $\log2\approx0.693$: it carries no information at all.</p>
+</div>
+
+<div class="callout ledger">
+  <span class="ct">Ledger &middot; GAIL</span>
+  <dl>
+    <dt>Assumed (Coordinate 1)</dt>
+    <dd>Behaviour model: entropy-regularised optimality. Selection principle: the regulariser
+    $\psi_{\mathrm{GA}}$, equivalently &ldquo;match occupancy in Jensen&ndash;Shannon
+    divergence&rdquo;. Reward class: whatever the discriminator architecture can express.</dd>
+    <dt>Approximated (Coordinate 2)</dt>
+    <dd>Everything, and cheaply. $Z$ is never formed; $P$ is never written down; both occupancy
+    measures are represented only by samples. Requires <em>online</em> interaction with the
+    environment, and inherits the instability of minimax optimisation.</dd>
+    <dt>Delivers</dt>
+    <dd>An imitating policy, often excellent, in continuous control from raw observations.
+    <strong>Not</strong> a reward.</dd>
+    <dt>Therefore</dt>
+    <dd>Use GAIL when you want behaviour in the same MDP. If you want an objective you can
+    re-optimise elsewhere, read on.</dd>
+  </dl>
+</div>
+</section>
+
+<section id="sec-11">
+<h3><span class="sn">11</span>AIRL: recovering something that transfers</h3>
+
+<p>AIRL [Fu, Luo &amp; Levine 2018] keeps GAIL's sampling machinery and repairs its Coordinate-1
+deficit by <em>constraining the discriminator</em>, so that a transferable reward is forced to appear
+inside it.</p>
+
+<h4 id="airl-form"><span class="sn">11.1</span>Where the discriminator's form comes from</h4>
+
+<p>The AIRL discriminator is not an arbitrary architecture. Suppose the &ldquo;expert&rdquo;
+distribution is the maximum-entropy model $p_\theta(\tau)\propto q(\tau)e^{\sum_tf_\theta(s_t,a_t)}$
+of Section 5, and the &ldquo;fake&rdquo; samples come from the current policy $\pi$. The Bayes-optimal
+discriminator between the two can be derived in three steps.</p>
+
+<div class="derivation" data-der>
+<div class="dstep" data-step="1">
+  <div class="dh">Step 1: the Bayes-optimal discriminator is a posterior</div>
+  <p>With equal priors on the two sources, the best possible classifier outputs the posterior
+  probability that a sample came from the expert model:</p>
+  $$D(\tau)=\frac{p_\theta(\tau)}{p_\theta(\tau)+p_\pi(\tau)}.$$
+</div>
+<div class="dstep" data-step="2">
+  <div class="dh">Step 2: factor both trajectory densities</div>
+  $$p_\theta(\tau)\propto q(\tau)\,e^{\sum_tf_\theta(s_t,a_t)},\qquad p_\pi(\tau)=q(\tau)\prod_t\pi(a_t\mid s_t).$$
+  <p class="dhint">The key observation: both contain the <em>same</em> dynamics factor
+  $q(\tau)=d_0(s_0)\prod_tP(s_{t+1}\mid s_t,a_t)$. The two hypotheses agree completely about how the
+  environment moves; they disagree only about how actions are chosen.</p>
+</div>
+<div class="dstep" data-step="3">
+  <div class="dh">Step 3: divide, and the dynamics cancel</div>
+  $$\frac{p_\theta(\tau)}{p_\pi(\tau)}\propto\prod_t\frac{e^{f_\theta(s_t,a_t)}}{\pi(a_t\mid s_t)},\qquad\log\frac{p_\theta(\tau)}{p_\pi(\tau)}=\text{const}+\sum_t\Big[f_\theta(s_t,a_t)-\log\pi(a_t\mid s_t)\Big].$$
+  <p>The trajectory-level log-odds decompose into a sum of per-step terms, each of the form
+  $f_\theta-\log\pi$. Taking the per-transition version of the posterior gives the AIRL
+  discriminator:</p>
+  <div class="eqn" id="eq-airl-d">$$D_\theta(s,a)=\frac{\exp f_\theta(s,a)}{\exp f_\theta(s,a)+\pi(a\mid s)}.$$<span class="eqno">(11.1)</span></div>
+</div>
+<button class="reveal-btn" type="button">Show next step</button>
+</div>
+
+<p>Two facts follow at once.</p>
+
+<div class="thm">
+  <p><span class="lab">Proposition (the AIRL reward is the logit minus a log-policy).</span> With $D$
+  as in (11.1), the log-odds reward is</p>
+  <div class="eqn" id="eq-airl-reward">$$\hat r(s,a)=\log D_\theta(s,a)-\log\big(1-D_\theta(s,a)\big)=f_\theta(s,a)-\log\pi(a\mid s).$$<span class="eqno">(11.2)</span></div>
+</div>
+
+<div class="callout">
+  <span class="ct">Remark: the $-\log\pi$ term is not noise</span>
+  <p>Maximising $\mathbb{E}_\pi\big[\sum_t\gamma^t(f-\log\pi)\big]$ is exactly maximising
+  $J_f(\pi)+\mathcal{H}_\gamma(\pi)$: the entropy bonus of (6.1) appears automatically. The
+  adversarial game is therefore performing entropy-regularised RL on $f$ whether or not anyone adds an
+  entropy term by hand. At the optimum, $f_\theta$ recovers the <em>advantage</em>
+  $A_{\mathrm{soft}}(s,a)=Q_{\mathrm{soft}}(s,a)-V_{\mathrm{soft}}(s)$ of the expert's soft policy
+  &mdash; and this is the crux of what follows, because an advantage is a reward plus shaping, not a
+  reward.</p>
+</div>
+
+<h4 id="airl-constraint"><span class="sn">11.2</span>The structural constraint</h4>
+
+<p>AIRL restricts $f$ to a shaped form:</p>
+<div class="eqn" id="eq-airl-shaped">$$f_{\theta,\omega}(s,a,s')=\underbrace{g_\theta(s)}_{\text{task reward}}\;+\;\underbrace{\gamma\,h_\omega(s')-h_\omega(s)}_{\text{potential-based shaping}}.$$<span class="eqno">(11.3)</span></div>
+
+<div class="callout warn">
+  <span class="ct">$g_\theta$ must depend on the state only</span>
+  <p>This is the load-bearing assumption of AIRL, and it is very often mis-stated as
+  $g_\theta(s,a)$. Here is why it must be $g_\theta(s)$.</p>
+  <p>For fixed dynamics $P$, the rewards inducing the same soft-optimal policy are exactly those of
+  the form</p>
+  <div class="eqn" id="eq-shaping-repeat">$$r'(s,a)=r(s,a)+\gamma\,\mathbb{E}_{s'\sim P(\cdot\mid s,a)}\big[\Psi(s')\big]-\Psi(s)$$<span class="eqno">(11.4)</span></div>
+  <p>for some potential $\Psi$. Note that the shaping term
+  $\gamma\,\mathbb{E}_{s'\mid s,a}[\Psi(s')]-\Psi(s)$ <strong>depends on $a$</strong> and
+  <strong>depends on $P$</strong>. So a state&ndash;action reward is identified only up to a nuisance
+  term that (i) cannot be distinguished from the reward by any amount of behavioural data, and
+  (ii) <em>changes when the dynamics change</em>. That is precisely a failure of transfer.</p>
+  <p>If instead $g$ is a function of $s$ alone, the only member of the family (11.4) that is itself
+  state-only is the one with $\Psi\equiv$ const (under the condition below). The action-dependent
+  freedom is squeezed entirely into $h_\omega$, and $g_\theta$ is pinned down up to an additive
+  constant.</p>
+</div>
+
+<div class="defn">
+  <p><span class="lab">Definition (decomposability).</span> Call two states <em>one-step linked</em>
+  if some state has positive-probability transitions to both. The dynamics are
+  <strong>decomposable</strong> if the transitive closure of this relation connects all of
+  $\mathcal{S}$. Equivalently: any two functions $a(s),b(s)$ with $a(s)+b(s')$ constant along all
+  feasible transitions must themselves be constant.</p>
+</div>
+
+<div class="thm">
+  <p><span class="lab">Theorem (disentanglement; Fu et al. 2018).</span> Suppose the dynamics are
+  decomposable, the discriminator is trained to optimality with $f$ constrained as in (11.3), and the
+  true expert is soft-optimal for a state-only reward $r^\star(s)$. Then at the global optimum there is
+  a constant $c$ with</p>
+  <div class="eqn" id="eq-disentangle">$$g_\theta(s)=r^\star(s)+c,\qquad h_\omega(s)=V^\star_{\mathrm{soft}}(s)+c.$$<span class="eqno">(11.5)</span></div>
+  <p>In particular, $g_\theta$ is invariant to changes in the transition dynamics, so re-optimising
+  $g_\theta$ in a different MDP with the same reward structure recovers appropriate behaviour
+  there.</p>
+</div>
+
+<div class="callout">
+  <span class="ct">Remark: what the theorem does and does not say</span>
+  <p>It says: under a structural condition on the dynamics, a state-only reward assumption, and exact
+  optimisation, the recovered $g$ equals the ground-truth reward up to a constant. It does
+  <em>not</em> say that the reward is uniquely recoverable in general. The state-only restriction is
+  doing the identification, and it is an assumption about the world, not a fact derived from data. If
+  the true reward genuinely depends on actions (an energy cost, say), AIRL will misattribute that
+  dependence to $h_\omega$ and the recovered $g$ will be wrong. Section 3 has not been repealed; it
+  has been paid off with an extra assumption &mdash; and the whole point of this tutorial is that
+  this is always the trade.</p>
+</div>
+
+<div class="algo" id="alg-airl">
+  <div class="cap">Algorithm 4. AIRL (Fu, Luo &amp; Levine, 2018)</div>
+  <ol>
+    <li><span class="kw">Require:</span> expert data $\mathcal{D}_E$, an environment sampler, policy $\pi_\vartheta$, networks $g_\theta$ and $h_\omega$</li>
+    <li><span class="kw">for</span> $k=1,2,\ldots$ <span class="kw">do</span></li>
+    <li class="i1">collect rollouts $\mathcal{B}\sim\pi_\vartheta$</li>
+    <li class="i1">form $f_{\theta,\omega}(s,a,s')=g_\theta(s)+\gamma h_\omega(s')-h_\omega(s)$ and $D=\dfrac{e^f}{e^f+\pi_\vartheta(a\mid s)}$</li>
+    <li class="i1"><span class="kw">discriminator step:</span> ascend the binary log-likelihood of $D$ on $\mathcal{D}_E$ (label 1) versus $\mathcal{B}$ (label 0), with respect to $(\theta,\omega)$</li>
+    <li class="i1"><span class="kw">policy step:</span> update $\pi_\vartheta$ by TRPO/PPO on $\hat r=\log D-\log(1-D)=f_{\theta,\omega}-\log\pi_\vartheta$</li>
+    <li><span class="kw">end for</span></li>
+    <li><span class="kw">return</span> the transferable reward $g_\theta$, the policy $\pi_\vartheta$, and the soft value estimate $h_\omega$</li>
+  </ol>
+</div>
+
+<div class="callout ledger">
+  <span class="ct">Ledger &middot; AIRL</span>
+  <dl>
+    <dt>Assumed (Coordinate 1)</dt>
+    <dd>Everything GAIL assumes, <em>plus</em>: the true reward is state-only, and the dynamics are
+    decomposable. In exchange, the shaping ambiguity &mdash; the one ambiguity that blocks transfer
+    &mdash; is quotiented out by construction.</dd>
+    <dt>Approximated (Coordinate 2)</dt>
+    <dd>As for GAIL: samples throughout, no $Z$, no $P$. Additionally requires evaluating
+    $\pi(a\mid s)$ explicitly inside $D$, so the policy must have a tractable density.</dd>
+    <dt>Delivers</dt>
+    <dd>$g_\theta\approx r^\star+c$, re-optimisable under new dynamics; and
+    $h_\omega\approx V^\star_{\mathrm{soft}}$, a useful by-product in its own right.</dd>
+    <dt>Fails when</dt>
+    <dd>The reward really depends on actions; the dynamics are not decomposable; or the discriminator
+    is not trained near optimality &mdash; the theorem is about the global optimum of a minimax
+    problem, which is not what any optimiser reliably finds.</dd>
+  </dl>
+</div>
+</section>
+</section>
+
+<!-- ============================================================ -->
+<!-- Part VI                                                       -->
+<!-- ============================================================ -->
+<section id="part-6">
+<h2 class="part"><span class="n">Part VI</span>Synthesis</h2>
+
+<section id="sec-12">
+<h3><span class="sn">12</span>Every method on the two coordinates</h3>
+
+<div class="tablewrap">
+<table class="min wide">
+<caption>Table 5. The same four methods, read as answers to &ldquo;what did you assume?&rdquo; and &ldquo;what did you approximate?&rdquo;</caption>
+<thead>
+<tr><th></th><th>Max-Margin<br><small>Abbeel &amp; Ng &rsquo;04</small></th><th>MaxCausalEnt<br><small>Ziebart &rsquo;08/&rsquo;10</small></th><th>GAIL<br><small>Ho &amp; Ermon &rsquo;16</small></th><th>AIRL<br><small>Fu et al. &rsquo;18</small></th></tr>
+</thead>
+<tbody>
+<tr class="grp"><th colspan="5">Coordinate 1: what is assumed</th></tr>
+<tr><th>Behaviour model</th><td>expert exactly optimal</td><td>Boltzmann-rational, $\pi\propto e^{Q_{\mathrm{soft}}/\beta}$</td><td>entropy-regularised optimal</td><td>entropy-regularised optimal</td></tr>
+<tr><th>Selection principle</th><td>largest margin</td><td>maximum causal entropy</td><td>$\psi_{\mathrm{GA}}$, i.e. minimum JS on $\rho$</td><td>$\psi_{\mathrm{GA}}$ + shaping quotient</td></tr>
+<tr><th>Reward class</th><td>linear in fixed $\phi$</td><td>linear in fixed $\phi$ (or any $R_\theta$)</td><td>implicit: discriminator architecture</td><td>$g_\theta(s)$ state-only + $h_\omega$ shaping</td></tr>
+<tr><th>Extra structural assumption</th><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>decomposable dynamics</td></tr>
+<tr class="grp"><th colspan="5">Coordinate 2: what is approximated</th></tr>
+<tr><th>Needs $P$ explicitly?</th><td>yes (inner RL + $\mu(\pi)$)</td><td>yes: (5.19) and (5.20)</td><td>no &mdash; needs a <em>sampler</em></td><td>no &mdash; needs a <em>sampler</em></td></tr>
+<tr><th>Inner expectation via</th><td>exact DP / linear solve</td><td>exact backward + forward passes</td><td>sampled rollouts + classifier</td><td>sampled rollouts + classifier</td></tr>
+<tr><th>Partition function</th><td>absent (no likelihood)</td><td>exact, by soft DP</td><td>never formed</td><td>never formed</td></tr>
+<tr><th>Per-iteration cost</th><td>QP + full RL solve</td><td>$O(T|\mathcal{S}|^2|\mathcal{A}|)$</td><td>rollout batch + 2 SGD steps</td><td>rollout batch + 2 SGD steps</td></tr>
+<tr><th>Scales to continuous control?</th><td>no</td><td>no (tabular)</td><td>yes</td><td>yes</td></tr>
+<tr class="grp"><th colspan="5">Outcome</th></tr>
+<tr><th>Returns</th><td>mixed policy + weak $w$</td><td>unique $w$, soft policy, a likelihood</td><td>policy only</td><td>policy + transferable $g_\theta$; $h_\omega\approx V_{\mathrm{soft}}$</td></tr>
+<tr><th>Handles noisy experts</th><td>poorly</td><td>naturally</td><td>naturally</td><td>naturally</td></tr>
+<tr><th>Reward transfers to new dynamics?</th><td>only within the class</td><td>only within the class</td><td><strong>no</strong> ($D\to\frac12$)</td><td>yes, under the disentanglement theorem</td></tr>
+<tr><th>Chief failure mode</th><td>infeasible constraints; feature design</td><td>intractable outside small tabular MDPs</td><td>minimax instability; no reward at the end</td><td>assumption violation; optimisation never reaches the optimum</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="callout accent">
+  <span class="ct">The one-paragraph version</span>
+  <p>Max-margin fixed the ambiguity geometrically and paid with a brittle behaviour model. Maximum
+  entropy replaced the geometry with a likelihood, which handled noise and gave a convex problem, and
+  paid with an intractable partition function. Occupancy measures revealed that both were solving a
+  distribution-matching problem in disguise. GAIL then estimated that distributional discrepancy by
+  classification instead of integration, which made it scale &mdash; at the cost of throwing the
+  reward away entirely. AIRL put a reward back by constraining the classifier so that a state-only
+  component and a shaping component are forced apart, buying transfer with one more assumption. At no
+  point did anyone recover a true reward from data alone, and at no point did anyone claim to.</p>
+</div>
+</section>
+
+<section id="sec-13">
+<h3><span class="sn">13</span>The three questions, answered on one page</h3>
+
+<p>Almost every beginner arrives with the same three questions. Having built the machinery, we can
+now answer them crisply.</p>
+
+<div class="callout">
+  <span class="ct">Q1. &ldquo;Everything is finite here &mdash; what happens in the real, infinite case?&rdquo;</span>
+  <p>The <em>statistics</em> are unchanged; only the <em>computation</em> changes. An infinite horizon
+  needs discounted causal entropy and a soft Bellman fixed point, which still contracts (the
+  log-sum-exp lemma of Section 6.1), so nothing is lost. A large or continuous $\mathcal{S}$ destroys
+  the tabular passes and forces function approximation and sampling. A continuous $\mathcal{A}$ turns
+  the soft maximum over actions into an intractable integral, handled variationally. And on a
+  continuum, the maximum-entropy objective is only well posed as a <em>relative</em> entropy
+  $-\mathrm{KL}(p\|q)$ &mdash; which is why we insisted on the reference measure $q$ from the very
+  first line, even though in the finite deterministic case it is a harmless constant. The reason to
+  learn IRL discretely first is not that discrete problems matter; it is that in the discrete case
+  every quantity is definable, so you can see precisely which ones later become approximations.
+  (<a href="#sec-6">Section 6</a>)</p>
+</div>
+
+<div class="callout">
+  <span class="ct">Q2. &ldquo;Do the features have to be hand-designed?&rdquo;</span>
+  <p>No. The maximum-entropy learning rule is
+  $\mathbb{E}_{\text{expert}}[\nabla_\theta R_\theta]-\mathbb{E}_{\text{model}}[\nabla_\theta R_\theta]$
+  for <em>any</em> differentiable reward class; the classical rule $\mu_E-\mathbb{E}[\Phi]$ is the
+  special case $R_\theta=w^\top\phi$. What a fixed linear $\phi$ actually bought was a finite
+  sufficient statistic, a convex dual, a class-wide performance guarantee and interpretability; what
+  it cost was silent misspecification. Learning $\phi$ trades convexity for expressiveness and
+  introduces a new $(w,\phi)\sim(A^{-\top}w,A\phi)$ ambiguity. Most importantly, the choice never
+  disappears: in GAIL and AIRL the discriminator architecture <em>is</em> the reward class, chosen
+  less visibly. (<a href="#sec-7">Section 7</a>)</p>
+</div>
+
+<div class="callout">
+  <span class="ct">Q3. &ldquo;What if we don't know $P$ and have to explore?&rdquo;</span>
+  <p>First separate the two jobs. Estimating the <em>expert's</em> statistics needs no model at all
+  &mdash; it is an average over the demonstrations. Estimating the <em>current candidate policy's</em>
+  statistics is the only place $P$ was ever used in exact MaxEnt IRL: the successor expectation in the
+  soft backward pass (5.19) and the visitation propagation in the forward pass (5.20). Both are
+  expectations, so both can be replaced by sampling whenever you can <em>draw</em> transitions, even
+  if you can never write $P$ down. You then pay in variance, sample complexity, coverage and possibly
+  the real-world risk of exploring; you do not pay any change in the IRL objective itself. Pushed one
+  step further, the observation that we only ever needed to <em>compare</em> two sampled distributions
+  replaces integration by classification &mdash; and that step is GAIL.
+  (<a href="#sec-8">Section 8</a>)</p>
+</div>
+</section>
+
+<section id="sec-14">
+<h3><span class="sn">14</span>A checklist for reading an IRL paper</h3>
+<ol>
+  <li>What is the behaviour model? Exact optimality, Boltzmann rationality (with which temperature?),
+  or something else?</li>
+  <li>What is the reward class, <em>including</em> when it is hidden in an architecture?</li>
+  <li>What is the selection principle, and is it stated or smuggled in?</li>
+  <li>Which quantity plays the role of $\mathbb{E}_{\text{model}}[\cdot]$, and how is it obtained
+  &mdash; exact DP, rollouts, importance weights, or a discriminator?</li>
+  <li>Does the method need $P$, a simulator, online interaction, or only offline data?</li>
+  <li>What exactly is claimed to be recovered &mdash; a policy, a reward equivalence class, or a
+  specific reward &mdash; and under what conditions?</li>
+  <li>If transfer is claimed, which ambiguity was removed to make it possible, and by what
+  assumption?</li>
+</ol>
+</section>
+
+<section id="sec-15">
+<h3><span class="sn">15</span>Common errors, collected</h3>
+
+<p>These mistakes recur in secondary expositions, including earlier drafts of these notes. Each is
+discussed at the section linked.</p>
+<ol>
+  <li><strong>Deriving $p(\tau)\propto e^{w^\top\Phi(\tau)}$ and later asserting
+  $p(\tau)\propto q(\tau)e^{w^\top\Phi(\tau)}$.</strong> These solve different programs. Put the
+  reference measure into the objective from the start (<a href="#reference-measure">Section 5.1</a>).</li>
+  <li><strong>Writing the maximum-entropy program as $-\int p\log p$ on a continuous trajectory
+  space.</strong> Differential entropy is not reparameterisation-invariant
+  (<a href="#large-states">Section 6.2</a>).</li>
+  <li><strong>Using the naive soft backward pass under stochastic dynamics.</strong> It is
+  risk-seeking and implicitly rewrites the transition kernel (5.16); use maximum causal entropy
+  (<a href="#causal-trap">Section 5.7</a>).</li>
+  <li><strong>Attributing potential-based shaping to Ng &amp; Russell (2000).</strong> It is Ng, Harada
+  &amp; Russell (1999), and the converse &mdash; that this is the <em>only</em> dynamics-independent
+  invariance &mdash; is what makes it the right nuisance class (<a href="#cone">Section 3.1</a>).</li>
+  <li><strong>Returning the last policy from Abbeel and Ng's algorithm.</strong> The guarantee is for
+  a mixture (<a href="#mm-algorithm">Section 4.3</a>).</li>
+  <li><strong>Mixing GAIL discriminator conventions, or treating $-\log(1-D)$, $\log D$ and the
+  log-odds as interchangeable.</strong> They induce different survival biases
+  (<a href="#gail-reward">Section 10.4</a>).</li>
+  <li><strong>Claiming that GAIL learns a reward.</strong> At convergence $D\equiv\frac12$
+  (<a href="#gail-limits">Section 10.5</a>).</li>
+  <li><strong>Writing AIRL's task term as $g_\theta(s,a)$.</strong> The disentanglement theorem
+  requires a state-only $g$ (<a href="#airl-constraint">Section 11.2</a>).</li>
+  <li><strong>Confusing uniqueness of $V^\star$ with identifiability of $R$, or uniqueness of the
+  estimator $w$ with identifiability of the estimand</strong> (<a href="#sec-3">Section 3</a> and
+  <a href="#dual-mle">Section 5.4</a>).</li>
+</ol>
+</section>
+
+<section id="sec-16">
+<h3><span class="sn">16</span>Conclusion</h3>
+
+<p>Inverse reinforcement learning is easy to state and impossible to solve as stated. The forward map
+from reward to behaviour destroys information, so behaviour can never determine reward; and the
+natural repairs all require an expectation under the policy that a candidate reward induces, which is
+a full forward-RL problem nested inside every gradient step.</p>
+
+<p>Reading the field through those two failures makes its history legible. Max-margin and maximum
+entropy are two answers to the first failure, and maximum entropy wins because it produces a
+likelihood: noise is modelled rather than excluded, and the estimation problem becomes convex. The
+exact tabular algorithm of Section 5 is the reference implementation of that idea, and its two passes
+show, with no ambiguity, where a transition model is required. Every method after it is an answer to
+the second failure. Occupancy measures reveal what the inner expectation really is; sampling replaces
+the forward pass; importance weighting reuses samples; and finally the realisation that we only ever
+needed to <em>compare</em> two sampled distributions replaces integration with classification, which
+is GAIL. AIRL then returns to the first failure with the leverage that adversarial training provides,
+and buys back exactly one ambiguity &mdash; potential shaping &mdash; at the price of exactly one
+assumption &mdash; a state-only reward.</p>
+
+<p>The lesson worth carrying away is not any single algorithm. It is that in IRL, <strong>every
+capability is purchased with an assumption</strong>, and the assumptions are always visible if you
+look for them in the right two places.</p>
+</section>
+</section>
+
+<!-- ============================================================ -->
+<!-- References                                                    -->
+<!-- ============================================================ -->
+<section id="references">
+<h2 class="front">References</h2>
+<ol class="refs">
+  <li>Ng, A. Y., &amp; Russell, S. J. (2000). Algorithms for inverse reinforcement learning. In <em>ICML 2000</em>, pp. 663&ndash;670. <span class="note">The polyhedral-cone characterisation of consistent rewards.</span></li>
+  <li>Ng, A. Y., Harada, D., &amp; Russell, S. J. (1999). Policy invariance under reward transformations: theory and application to reward shaping. In <em>ICML 1999</em>, pp. 278&ndash;287. <span class="note">Potential-based shaping preserves optimality, and its converse.</span></li>
+  <li>Abbeel, P., &amp; Ng, A. Y. (2004). Apprenticeship learning via inverse reinforcement learning. In <em>ICML 2004</em>. <span class="note">Max-margin IRL and feature matching.</span></li>
+  <li>Ziebart, B. D., Maas, A. L., Bagnell, J. A., &amp; Dey, A. K. (2008). Maximum entropy inverse reinforcement learning. In <em>AAAI 2008</em>, pp. 1433&ndash;1438.</li>
+  <li>Ziebart, B. D. (2010). <em>Modeling Purposeful Adaptive Behavior with the Principle of Maximum Causal Entropy</em>. PhD thesis, Carnegie Mellon University. <span class="note">The correct treatment of stochastic dynamics; see Section 5.7.</span></li>
+  <li>Jaynes, E. T. (1957). Information theory and statistical mechanics. <em>Physical Review</em>, 106(4), 620&ndash;630.</li>
+  <li>Puterman, M. L. (1994). <em>Markov Decision Processes: Discrete Stochastic Dynamic Programming</em>. Wiley. <span class="note">Occupancy-measure formulation and the policy&ndash;occupancy bijection.</span></li>
+  <li>Syed, U., Bowling, M., &amp; Schapire, R. E. (2008). Apprenticeship learning using linear programming. In <em>ICML 2008</em>, pp. 1032&ndash;1039.</li>
+  <li>Ho, J., &amp; Ermon, S. (2016). Generative adversarial imitation learning. In <em>NeurIPS 2016</em>.</li>
+  <li>Fu, J., Luo, K., &amp; Levine, S. (2018). Learning robust rewards with adversarial inverse reinforcement learning. In <em>ICLR 2018</em>.</li>
+  <li>Finn, C., Levine, S., &amp; Abbeel, P. (2016). Guided cost learning: deep inverse optimal control via policy optimization. In <em>ICML 2016</em>, pp. 49&ndash;58.</li>
+  <li>Wulfmeier, M., Ondr&#250;&#353;ka, P., &amp; Posner, I. (2015). Maximum entropy deep inverse reinforcement learning. <em>arXiv:1507.04888</em>.</li>
+  <li>Haarnoja, T., Zhou, A., Abbeel, P., &amp; Levine, S. (2018). Soft actor&ndash;critic: off-policy maximum entropy deep RL with a stochastic actor. In <em>ICML 2018</em>.</li>
+  <li>Levine, S. (2018). Reinforcement learning and control as probabilistic inference: tutorial and review. <em>arXiv:1805.00909</em>.</li>
+  <li>Ramachandran, D., &amp; Amir, E. (2007). Bayesian inverse reinforcement learning. In <em>IJCAI 2007</em>, pp. 2586&ndash;2591.</li>
+  <li>Cao, H., Cohen, S., &amp; Szpruch, L. (2021). Identifiability in inverse reinforcement learning. In <em>NeurIPS 2021</em>.</li>
+  <li>Skalse, J., Farnik, L., Motwani, S. R., Jenner, E., Gleave, A., &amp; Abate, A. (2023). Invariance in policy optimisation and partial identifiability in reward learning. In <em>ICML 2023</em>.</li>
+  <li>Watkins, C. J. C. H., &amp; Dayan, P. (1992). Q-learning. <em>Machine Learning</em>, 8(3&ndash;4), 279&ndash;292.</li>
+  <li>Tsitsiklis, J. N. (1994). Asynchronous stochastic approximation and Q-learning. <em>Machine Learning</em>, 16(3), 185&ndash;202.</li>
+  <li>Sutton, R. S., McAllester, D., Singh, S., &amp; Mansour, Y. (1999). Policy gradient methods for reinforcement learning with function approximation. In <em>NeurIPS 1999</em>.</li>
+  <li>Azar, M. G., Munos, R., &amp; Kappen, H. J. (2013). Minimax PAC bounds on the sample complexity of reinforcement learning with a generative model. <em>Machine Learning</em>, 91(3), 325&ndash;349.</li>
+  <li>Sutton, R. S., &amp; Barto, A. G. (2018). <em>Reinforcement Learning: An Introduction</em>, 2nd ed. MIT Press.</li>
+  <li>Bagnell, J. A. (2014). An invitation to imitation. Technical report CMU-RI-TR-15-08, Carnegie Mellon University.</li>
+</ol>
+</section>
+
+</article>
+</div><!-- /.layout -->
+
+<footer class="site-foot">
+  <div class="cols">
+    <h2 id="cite">Cite this post</h2>
+<pre><code>@misc{chi2026irl,
+  author = {Chi, Yuhan},
+  title  = {A Gentle Introduction to Inverse Reinforcement Learning:
+            What Must Be Assumed, and What Must Be Approximated},
+  year   = {2026},
+  url    = {https://chi-shan0707.github.io/IRL/tutorial.html}
+}</code></pre>
+    <div class="row">
+      <span>&copy; 2026 Yuhan Chi &middot; <a href="index.html">Home</a> &middot; <a href="slides.html">Slides</a> &middot; <a href="irl-notes.pdf">PDF notes</a></span>
+      <span><a href="https://github.com/Chi-Shan0707/IRL">Source on GitHub</a> &middot; Maths rendered offline with vendored KaTeX</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/katex/katex.min.js"></script>
+<script src="assets/katex/auto-render.min.js"></script>
+<script>
+// ---- theme toggle (shared convention with index.html: data-theme + localStorage "theme") ----
+(function () {
+  var btn = document.getElementById("theme-toggle");
+  if (!btn) return;
+  btn.addEventListener("click", function () {
+    var t = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = t;
+    try { localStorage.setItem("theme", t); } catch (e) {}
+  });
+})();
+
+// ---- math rendering ----
+// The two KaTeX scripts above are synchronous and ordered, so KaTeX is normally
+// available immediately. The retry covers environments that defer script loading;
+// if KaTeX never arrives the page stays readable, with LaTeX source in place.
+function initMath() {
+  if (!window.renderMathInElement) {
+    if ((initMath.tries = (initMath.tries || 0) + 1) <= 200) setTimeout(initMath, 100);
+    return;
+  }
+  if (initMath.done) return;
+  initMath.done = true;
+  renderMathInElement(document.body, {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      {left: "$", right: "$", display: false},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ],
+    ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"],
+    ignoredClasses: ["no-math"],
+    throwOnError: false,
+    strict: false
+  });
+}
+initMath();
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initMath);
+window.addEventListener("load", initMath);
+
+// ---- step-by-step derivations (progressive enhancement) ----
+// All steps are visible by default. Later steps are hidden only once the
+// reveal button has been shown, so the page degrades gracefully without JS.
+function initDerivations() {
+  document.querySelectorAll(".derivation").forEach(function (box) {
+    var steps = box.querySelectorAll(".dstep");
+    var btn = box.querySelector(".reveal-btn");
+    if (!btn || steps.length < 2) return;
+    var idx = 1, n = steps.length;
+    function label() { btn.textContent = "Show next step (" + (idx + 1) + " of " + n + ")"; }
+    btn.style.display = "inline-block";
+    box.classList.add("js-active");
+    for (var i = idx; i < n; i++) steps[i].classList.add("dhidden");
+    label();
+    btn.addEventListener("click", function () {
+      if (idx >= n) return;
+      var s = steps[idx];
+      s.classList.remove("dhidden");
+      s.classList.add("djust");
+      idx++;
+      if (idx >= n) { btn.disabled = true; btn.textContent = "All steps shown ✓"; }
+      else label();
+      if (typeof s.scrollIntoView === "function") s.scrollIntoView({behavior: "smooth", block: "nearest"});
+    });
+  });
+}
+initDerivations();
+
+// ---- reading progress bar and table-of-contents highlighting ----
+(function () {
+  var bar = document.getElementById("readprog");
+  var links = Array.prototype.slice.call(document.querySelectorAll("nav.toc a[href^='#']"));
+  var targets = links.map(function (a) { return document.getElementById(a.getAttribute("href").slice(1)); });
+  var current = null;
+  function update() {
+    var h = document.documentElement;
+    var max = h.scrollHeight - h.clientHeight;
+    var y = window.pageYOffset || h.scrollTop || document.body.scrollTop || 0;
+    if (bar) bar.style.width = (max > 0 ? (y / max) * 100 : 0).toFixed(1) + "%";
+    var active = -1, best = -Infinity;
+    for (var i = 0; i < targets.length; i++) {
+      var t = targets[i];
+      if (!t) continue;
+      var top = t.getBoundingClientRect().top;
+      if (top <= 110 && top > best) { best = top; active = i; }
+    }
+    var link = active >= 0 ? links[active] : null;
+    if (link !== current) {
+      if (current) current.classList.remove("active");
+      if (link) link.classList.add("active");
+      current = link;
+    }
+  }
+  var ticking = false;
+  window.addEventListener("scroll", function () {
+    if (!ticking) { ticking = true; requestAnimationFrame(function () { ticking = false; update(); }); }
+  }, {passive: true});
+  window.addEventListener("resize", update);
+  window.addEventListener("load", update);
+  update();
+})();
+</script>
+</body>
+</html>
