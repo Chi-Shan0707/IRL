@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>逆强化学习温柔导读 · 中文逐步推导</title>
+<link rel="stylesheet" href="assets/katex/katex.min.css">
+<style>
+:root{
+  --bg:#fbfaf7;
+  --paper:#ffffff;
+  --ink:#232323;
+  --ink-soft:#4a4a46;
+  --muted:#7a7872;
+  --rule:#e5e2da;
+  --accent:#2f4b7c;
+  --accent-deep:#22375a;
+  --accent-bg:#eef2f8;
+  --warn:#a03a2e;
+  --warn-bg:#fbf2f0;
+  --ok:#3d6b4f;
+  --ok-bg:#f1f6f2;
+  --code-bg:#f4f2ed;
+  --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  --sans:"Inter","Helvetica Neue","Noto Sans SC","PingFang SC","Hiragino Sans GB",
+         "Microsoft YaHei","Source Han Sans SC",sans-serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:var(--sans);
+  font-size:16px;line-height:1.85;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+::selection{background:#d7e0ee}
+
+/* ---------- layout ---------- */
+.paper{
+  max-width:760px;margin:0 auto;padding:64px 28px 120px;
+  background:var(--paper);
+  box-shadow:0 0 0 1px var(--rule);
+}
+@media(max-width:640px){.paper{padding:40px 20px 80px}}
+
+/* ---------- typography ---------- */
+h1,h2,h3,h4{font-weight:700;line-height:1.3;letter-spacing:.01em;color:var(--ink)}
+h1{font-size:1.9rem;margin:0 0 .35em}
+h2{
+  font-size:1.42rem;margin:3.4em 0 .5em;padding-top:1.6em;
+  border-top:1px solid var(--rule);
+}
+h2 .n{
+  display:block;font-size:.72rem;font-weight:600;letter-spacing:.18em;
+  color:var(--accent);text-transform:uppercase;margin-bottom:.35em;
+}
+h3{font-size:1.12rem;margin:2.2em 0 .35em;color:var(--accent-deep)}
+h4{font-size:1rem;margin:1.6em 0 .3em;color:var(--ink-soft)}
+p{margin:.7em 0}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid #c6d3e6}
+a:hover{border-bottom-color:var(--accent)}
+strong{font-weight:700;color:#1a1a1a}
+em{font-style:italic;color:var(--ink-soft)}
+ul,ol{padding-left:1.5em;margin:.6em 0}
+li{margin:.35em 0}
+li > p{margin:.3em 0}
+hr{border:0;border-top:1px solid var(--rule);margin:3em 0}
+small{color:var(--muted);font-size:.85em}
+
+/* ---------- math ---------- */
+.katex-display{margin:1.15em 0 1.3em;overflow-x:auto;overflow-y:hidden;padding:2px 0}
+.katex{font-size:1.03em}
+.eq-tag{float:right;color:var(--muted);font-size:.8em;font-family:var(--mono)}
+.mrow{display:flex;align-items:center;gap:.7em;flex-wrap:wrap;margin:.5em 0}
+.mrow .katex{margin:0}
+
+/* ---------- callouts ---------- */
+.callout{
+  margin:1.5em 0;padding:16px 20px;border-radius:2px;
+  background:#f6f5f1;border-left:3px solid #c9c6bd;
+}
+.callout .ct{
+  font-weight:700;font-size:.9em;letter-spacing:.04em;
+  color:var(--muted);display:block;margin-bottom:.4em;
+}
+.callout p:first-of-type{margin-top:0}
+.callout p:last-child{margin-bottom:0}
+.callout.accent{background:var(--accent-bg);border-left-color:var(--accent)}
+.callout.accent .ct{color:var(--accent)}
+.callout.warn{background:var(--warn-bg);border-left-color:var(--warn)}
+.callout.warn .ct{color:var(--warn)}
+.callout.ok{background:var(--ok-bg);border-left-color:var(--ok)}
+.callout.ok .ct{color:var(--ok)}
+.callout.ledger{background:#f2f4f9;border-left-color:var(--accent-deep)}
+.callout.ledger .ct{color:var(--accent-deep)}
+
+/* ---------- tables ---------- */
+table.min{
+  width:100%;border-collapse:collapse;margin:1.4em 0;font-size:.92em;
+}
+table.min th,table.min td{
+  padding:8px 10px;text-align:left;border-bottom:1px solid var(--rule);
+  vertical-align:top;
+}
+table.min thead th{
+  border-bottom:2px solid #c9c6bd;font-weight:700;color:var(--ink);
+  border-top:2px solid #c9c6bd;background:transparent;
+}
+table.min tbody tr:last-child td{border-bottom:2px solid #c9c6bd}
+table.min code{font-size:.9em}
+
+/* ---------- code ---------- */
+code{
+  font-family:var(--mono);font-size:.86em;background:var(--code-bg);
+  padding:.1em .35em;border-radius:2px;color:#3a3a36;
+}
+pre{
+  background:var(--code-bg);padding:14px 16px;border-radius:3px;
+  border-left:3px solid #c9c6bd;overflow-x:auto;
+}
+pre code{background:none;padding:0}
+
+/* ---------- step-by-step derivation cards ---------- */
+.derivation{margin:2em 0}
+.dstep{
+  position:relative;margin:0 0 14px 0;padding:14px 18px 14px 52px;
+  background:#fcfcfa;border:1px solid var(--rule);border-radius:3px;
+}
+.dstep::before{
+  content:attr(data-step);position:absolute;left:0;top:0;bottom:0;width:40px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:.85rem;font-weight:700;color:#fff;
+  background:var(--accent);
+}
+.dstep .dh{
+  font-weight:700;color:var(--accent-deep);margin:.1em 0 .5em;font-size:.98em;
+}
+.dstep p{margin:.4em 0}
+.dstep .katex-display{margin:.7em 0 .8em}
+.dstep.djust{animation:pop .45s ease}
+@keyframes pop{from{background:#eef2f8}to{background:#fcfcfa}}
+.reveal-btn{
+  display:none;margin:.4em 0 0;padding:9px 20px;cursor:pointer;
+  font-family:var(--sans);font-size:.9rem;font-weight:600;color:#fff;
+  background:var(--accent);border:0;border-radius:3px;
+}
+.reveal-btn:hover{background:var(--accent-deep)}
+.reveal-btn:disabled{background:#9aa3b4;cursor:default}
+.derivation.js-active .dstep.dhidden{display:none}
+.derivation.js-active .reveal-btn{display:inline-block}
+.dhint{font-size:.85em;color:var(--muted);margin:.2em 0 0}
+
+/* ---------- header / footer ---------- */
+header.mast{padding:0 0 2.4em;text-align:left}
+.kicker{
+  font-size:.74rem;letter-spacing:.22em;color:var(--accent);
+  text-transform:uppercase;font-weight:600;margin-bottom:1em;
+}
+.sub{font-size:1.05rem;color:var(--ink-soft);margin:.3em 0 0}
+.src{
+  margin-top:1.6em;font-size:.86rem;color:var(--muted);line-height:1.7;
+  border-left:2px solid var(--rule);padding-left:14px;
+}
+footer.foot{
+  border-top:1px solid var(--rule);margin-top:4em;padding-top:1.4em;
+  font-size:.84rem;color:var(--muted);
+}
+.toc{margin:1.6em 0 2.4em;columns:2;column-gap:28px;font-size:.9em}
+@media(max-width:640px){.toc{columns:1}}
+.toc ol{margin:0;padding-left:1.2em}
+.toc li{margin:.32em 0;break-inside:avoid}
+.toc .tp{font-weight:700;color:var(--accent-deep)}
+.toc a{border-bottom:0;color:var(--ink-soft)}
+.toc a:hover{color:var(--accent)}
+.pacemaker{
+  text-align:center;font-size:.78rem;letter-spacing:.2em;color:var(--muted);
+  margin:3.4em 0 .2em;text-transform:uppercase;
+}
+.pacebar{height:2px;background:var(--rule);margin:.6em 0 2.6em;position:relative}
+.pacebar i{
+  position:absolute;left:0;top:0;height:2px;width:100%;
+  background:repeating-linear-gradient(90deg,var(--accent) 0 13px,#e4e2dc 13px 18px);
+}
+/* reading progress: grows as the reader scrolls */
+#readprog{position:fixed;top:0;left:0;height:2px;width:0;z-index:60;
+  background:var(--accent);transition:width .12s linear;pointer-events:none}
+</style>
+</head>
+<body>
+
+<div id="readprog"></div>
+
+<article class="paper">
+
+<header class="mast">
+  <div class="kicker">Inverse Reinforcement Learning · 中文导读</div>
+  <h1>逆强化学习温柔导读</h1>
+  <p class="sub">哪些必须被假设，哪些只能被近似 —— 以及后半部分的逐步推导</p>
+  <div class="src">
+    本文是对 Yuhan Chi（复旦大学）讲义 <em>A Gentle Introduction to Inverse
+    Reinforcement Learning: What Must Be Assumed, and What Must Be
+    Approximated</em> 的中文重述。原文把每个方法都放在「两条坐标」上定位；
+    本文沿用这一骨架，并在<strong>最大熵之后</strong>的内容上放慢节奏、逐式推导。
+    前半部分（前向 RL、不良定义性）以够用为度，后面逐步展开。
+  </div>
+</header>
+
+<div class="toc">
+  <ol>
+    <li><span class="tp">导读</span> <a href="#guide">两条坐标，一条主线</a></li>
+    <li><span class="tp">第一部分</span> <a href="#p1">良定义的前向方向</a></li>
+    <li><span class="tp">第二部分</span> <a href="#p2">不良定义的逆向问题</a></li>
+    <li><span class="tp">第三部分</span> <a href="#p3">两个选择原理（精确计算）</a>
+      <ul><li><a href="#maxent">最大熵 IRL：逐步推导</a></li></ul></li>
+    <li><span class="tp">第四部分</span> <a href="#p4">离开安全角落的三个出口</a>
+      <ul><li><a href="#exita">出口 A：无限与连续</a></li>
+      <li><a href="#exitb">出口 B：特征必须手工吗</a></li>
+      <li><a href="#exitc">出口 C：不知道 <em>P</em> 怎么办</a></li></ul></li>
+    <li><span class="tp">第五部分</span> <a href="#p5">对抗方法：占据度、GAIL、AIRL</a>
+      <ul><li><a href="#occvar">占据度度量与双射</a></li>
+      <li><a href="#gail">GAIL：密度比估计</a></li>
+      <li><a href="#airl">AIRL：可迁移的奖励</a></li></ul></li>
+    <li><span class="tp">第六部分</span> <a href="#p6">综合：一张表、三个问题</a>
+      <ul><li><a href="#p6q">三个入门问题的一页回答</a></li>
+      <li><a href="#p6check">读论文清单与常见错误</a></li></ul></li>
+  </ol>
+</div>
+
+<!-- ================= 导读 ================= -->
+<section id="guide">
+<h2><span class="n">导读</span>两条坐标，一条主线</h2>
+
+<p>前向强化学习是一个<strong>良定义</strong>的问题：给定奖励，最优值函数唯一，一个压缩映射就能把它算出来。
+逆强化学习（IRL）<strong>不是</strong>良定义的，而且它在两个互相独立的方向上同时失败：</p>
+
+<ul>
+  <li><strong>统计上失败（识别问题）</strong>。无穷多个奖励能解释同一段行为。数据再多，没有额外假设也无法挑出唯一一个。</li>
+  <li><strong>计算上失败（计算问题）</strong>。每一种"给候选奖励打分"的原理，都需要在<strong>该奖励所诱导的策略</strong>下取期望 —— 相当于在每一个梯度步里嵌套了一个完整的前向 RL 问题。</li>
+</ul>
+
+<div class="callout accent">
+  <span class="ct">两条坐标 · 本文的骨架</span>
+  <p><strong>坐标一 —— 什么必须被假设？（识别问题）</strong><br>
+  行为不能决定奖励。前向映射 $R \mapsto \pi^\star$ 破坏信息，任何估计量都无法重建它。
+  因此每个 IRL 方法都偷偷带入了三样东西：(i) 一个<strong>行为模型</strong>，说明奖励如何产生动作；
+  (ii) 一个<strong>选择原理</strong>，从幸存的等价类里挑一个代表；(iii) 一个<strong>奖励类</strong>，限制 $R$ 长什么样。
+  这些是<strong>建模承诺</strong>，不是发现。一个方法只和它们一样可信。</p>
+  <p><strong>坐标二 —— 什么只能被近似？（计算问题）</strong><br>
+  每个选择原理在给候选奖励 $R$ 打分时，都要把专家的行为统计量与"$R$ 诱导的策略"的行为统计量相比较。
+  产出后者意味着在循环内部解一个前向 RL 问题，再在其解下取期望。在有限、已知模型的 MDP 里这两步都是精确的；
+  一旦离开这个设定就不然了。<strong>IRL 的历史，很大程度上就是那个期望的越来越便宜的替代品的历史。</strong></p>
+</div>
+
+<p>两条坐标彼此独立，把它们分开就能消解大部分早期困惑：一个方法可以统计上诚实而计算上无望
+（大型 MDP 里的精确表格法 MaxEnt），也可以计算上极好而对奖励统计上沉默（GAIL）。
+当有人说"IRL 是不良定义的"，要先问清楚他指的是哪条坐标。</p>
+
+<p><strong>本文的路线与节奏。</strong>第一、二部分快速建立前向方向与逆向的不良定义性（你说过这部分还可以，所以从简）。
+第三部分在唯一一个"计算不花钱"的设定里把 MaxEnt IRL 推到底，并给出可以笔算检验的例子。
+第四、五部分是<strong>重点</strong>：放慢节奏，一步一步推导三个出口、占据度度量、GAIL 与 AIRL。
+每个方法结尾都有一张<strong>台账（Ledger）</strong>：用方法自己的话记下它假设了什么、近似了什么。</p>
+</section>
+
+<div class="pacemarker">前半部分 · 快速通过<div class="pacebar"><i></i></div></div>
+
+<!-- ================= 第一部分 ================= -->
+<section id="p1">
+<h2><span class="n">第一部分</span>良定义的前向方向</h2>
+
+<h3>1.1 马尔可夫决策过程</h3>
+<p>有限 MDP 是元组 $(\mathcal{S},\mathcal{A},P,R,\gamma,d_0)$：$\mathcal{S},\mathcal{A}$ 有限，
+$P(s'\mid s,a)$ 是转移核，$R:\mathcal{S}\times\mathcal{A}\to\mathbb{R}$ 有界，
+$\gamma\in(0,1)$，$d_0$ 是初始状态分布。把奖励以外的部分 $(\mathcal{S},\mathcal{A},P,\gamma,d_0)$
+记作 $\mathcal{M}$，称为<strong>动力学</strong>。</p>
+<p>这个分离不是装饰。IRL 就是在<strong>给定 $\mathcal{M}$</strong>（或给定与它交互的能力）和给定行为的前提下，
+恢复 $R$。一切全看我们被允许知道 $\mathcal{M}$ 的多少。</p>
+
+<h3>1.2 策略评估是一个线性方程组</h3>
+<p>固定 $\pi$，Bellman 期望方程是线性的：$\mathbf{V}^\pi = \mathbf{R}^\pi + \gamma\mathbf{P}^\pi\mathbf{V}^\pi$。
+因为 $\mathbf{P}^\pi$ 行随机、$\gamma &lt; 1$，故 $\mathbf{I}-\gamma\mathbf{P}^\pi$ 可逆：</p>
+<p class="mrow">$\mathbf{V}^\pi = (\mathbf{I}-\gamma\mathbf{P}^\pi)^{-1}\mathbf{R}^\pi = \sum_{k\ge 0}\gamma^k(\mathbf{P}^\pi)^k\mathbf{R}^\pi$
+<span class="eq-tag">(Neumann 级数)</span></p>
+<p>这里有一个后面要反复用到的读法：$(\mathbf{I}-\gamma\mathbf{P}^\pi)^{-1}$ 除以 $(1-\gamma)$ 归一化后，
+就是<strong>折扣状态占据度</strong>的矩阵。<strong>值函数是占据度加权的奖励和。</strong>这句话是从经典 IRL 走到 GAIL 的桥。</p>
+
+<h3>1.3 最优性是压缩映射</h3>
+<p>Bellman 最优算子 $(\mathcal{B}^\star V)(s)=\max_a[R(s,a)+\gamma\sum_{s'}P(s'\mid s,a)V(s')]$
+满足 $\|\mathcal{B}^\star V_1-\mathcal{B}^\star V_2\|_\infty\le\gamma\|V_1-V_2\|_\infty$。
+由 Banach 不动点定理：唯一不动点 $V^\star$ 存在，值迭代几何收敛，对 $V^\star$ 的贪心策略最优。</p>
+
+<h3>1.4 前向 RL"容易"的四根支柱</h3>
+<div class="callout">
+  <span class="ct">四根支柱</span>
+  <ol>
+    <li><strong>未知量有限维，方程精确。</strong>$V^\star\in\mathbb{R}^{|\mathcal{S}|}$ 解一个有限系统。</li>
+    <li><strong>解算子是压缩映射。</strong>唯一性与几何收敛率是白送的。</li>
+    <li><strong>期望是已知核上的有限和。</strong>每个 $\sum_{s'}P(s'\mid s,a)(\cdot)$ 都能精确求值。</li>
+    <li><strong>目标是给定的。</strong>存在一个真值可以给任何答案打分。</li>
+  </ol>
+</div>
+<p>IRL 移除的是第 4 根支柱，这就是坐标一。大规模或未知环境移除第 1–3 根，这就是坐标二。</p>
+</section>
+
+<!-- ================= 第二部分 ================= -->
+<section id="p2">
+<h2><span class="n">第二部分</span>不良定义的逆向问题</h2>
+
+<h3>2.1 两个方向</h3>
+<p>前向 RL：动力学 $\mathcal{M}$ + 奖励 $R$ $\xrightarrow{\text{优化}}$ 最优策略 $\pi^\star$。<br>
+IRL：动力学 $\mathcal{M}$ + 演示数据 $\mathcal{D}_E$ $\xrightarrow{\text{推断}}$ 奖励 $R$（通常再得到 $\pi$）。</p>
+<p>我们观测到 $m$ 条轨迹 $\mathcal{D}_E=\{\tau^{(1)},\dots,\tau^{(m)\}}$，
+$\tau=(s_0,a_0,s_1,a_1,\dots,s_T)$，折扣轨迹回报 $R(\tau)=\sum_{t\ge0}\gamma^tR(s_t,a_t)$。</p>
+<p><strong>专家（近）最优假设</strong>：$\mathcal{D}_E$ 由某个对未知奖励 $R^\star$ 最优或近最优的策略 $\pi_E$ 生成。
+这是最粗糙形式的<strong>行为模型</strong>。字面理解它只给出一组不等式 $J_R(\pi_E)\ge J_R(\pi),\ \forall\pi$。
+从不等式出发很难估计。现代 IRL 的技术内容，很大程度上就是把这组不等式换成一个<strong>概率</strong>行为模型
+——把不等式变成似然，于是梯度有处可施。这正是第三部分 MaxEnt 做的事。</p>
+
+<h3>2.2 前向映射极端多对一</h3>
+<p>$V^\star$ 给定 $\mathcal{M},R$ 后唯一（压缩映射的不动点）；$\pi^\star$ 未必唯一（并列时贪心步骤给出一个集合）；
+而给定行为时 $R$ <strong>远</strong>不唯一。前向解的唯一性对逆向解的唯一性毫无保证。</p>
+
+<h3>2.3 解集是一个凸锥（Ng &amp; Russell, 2000）</h3>
+<p>对有限 $\mathcal{S}$、状态奖励 $R\in\mathbb{R}^{|\mathcal{S}|}$，确定性策略 $\pi$（不妨记 $\pi(s)\equiv a_1$）
+对 $R$ 最优，当且仅当对每个 $a\ne a_1$：</p>
+<p class="mrow">$(\mathbf{P}_{a_1}-\mathbf{P}_a)(\mathbf{I}-\gamma\mathbf{P}_{a_1})^{-1}R \succeq 0$</p>
+<p>于是与观测策略一致的奖励构成一个闭<strong>凸锥</strong>：对非负缩放与加法封闭。
+它永远包含 $R\equiv 0$（对它任何策略都最优），所以光看行为永远排除不了"什么都不重要"这个退化解释。</p>
+
+<h3>2.4 势整形：一个额外的自由度</h3>
+<p>对任意势函数 $\Psi:\mathcal{S}\to\mathbb{R}$，整形后的奖励</p>
+<p class="mrow">$R'(s,a,s') = R(s,a) + \gamma\Psi(s') - \Psi(s)$</p>
+<p>把所有策略的值平移同一个常数，因而完整保持策略偏好序，$\Pi^\star(R')=\Pi^\star(R)$。
+（这个性质属于 Ng, Harada &amp; Russell 1999，不是 2000 年那篇 IRL；而且该文还证明了逆命题：
+势整形是唯一对所有转移核都保持最优性的可加奖励修改。）这正是 AIRL 要除掉的"讨嫌参数"。</p>
+
+<h3>2.5 一个最小例子</h3>
+<p>单状态、单次决策 left/right，专家选 left。我们只学到 $R(s,\text{left})\ge R(s,\text{right})$。
+$(1,0)$、$(10,-3)$、$(0,-100)$ 同样一致。一次观测钉不住两个数，重复同一次观测也没用。
+但注意它确实排除了 $R(\text{left}) &lt; R(\text{right})$：<strong>IRL 不是无望的，它是部分可识别的。</strong></p>
+
+<h3>2.6 诚实的输出目标</h3>
+<ol>
+  <li>一个诱导观测行为的奖励<strong>等价类</strong>；</li>
+  <li>由明确选择原理挑出的<strong>单个代表</strong>（最大间隔、最大熵、贝叶斯先验、稀疏性）；</li>
+  <li>或者只是一个占据度匹配专家的<strong>策略</strong>，完全不声称奖励。</li>
+</ol>
+<p>第 3 项就是模仿学习，常常正是人们真正想要的；第 2 项是多数论文实际交付的；第 1 项才是数据真正支持的。
+把 2 混同于 1，是文献中最常见的夸大。</p>
+
+<div class="callout warn">
+  <span class="ct">值得怀疑的说法</span>
+  <p><em>"我们的方法恢复了真实奖励函数。"</em> 没有任何方法能仅凭行为恢复奖励函数。
+  方法恢复的是一个等价类的代表，由论文做出的假设挑选出来的。有用的问题从来不是"奖励对吗？"，
+  而是"奖励对<strong>我的用途</strong>对吗？" —— 而最常见的两种用途（在同一 MDP 里复现行为、
+  把行为迁移到别的 MDP）需要的识别程度天差地别。第五部分的 AIRL 就完全在讲这个差距。</p>
+</div>
+
+<h3>2.7 线性奖励类：把回报塌缩成有限统计量</h3>
+<p>未知的是函数 $R:\mathcal{S}\times\mathcal{A}\to\mathbb{R}$。只有在我们<strong>选定</strong>一个模型类之后，
+有限向量 $w\in\mathbb{R}^d$ 才会出现，最常见的是线性类：</p>
+<p class="mrow">$R_w(s,a) = w^\top\phi(s,a)$</p>
+<p>于是在这个类里，期望回报塌缩成有限统计量：</p>
+<p class="mrow">$J_{R_w}(\pi) = w^\top\,\mathbb{E}_\pi\!\Big[\textstyle\sum_{t\ge0}\gamma^t\phi(s_t,a_t)\Big] = w^\top\mu(\pi)$</p>
+<p>向量 $\mu(\pi)\in\mathbb{R}^d$ 是策略的<strong>充分统计量</strong>：对类内任何奖励评估策略而言，
+$\pi$ 的其余一切信息都无关。这个代数事实是经典 IRL 可解的基础，而失去它就是离开线性类的代价。</p>
+</section>
+
+<div class="pacemarker">节奏转换处 · 接下来逐步推导<div class="pacebar"><i></i></div></div>
+
+<!-- ================= 第三部分 ================= -->
+<section id="p3">
+<h2><span class="n">第三部分</span>两个选择原理（在"安全角落"里精确计算）</h2>
+
+<p>本部分始终待在<strong>安全角落</strong>：$\mathcal{S},\mathcal{A}$ 有限、核 $P$ 完全已知、$\phi$ 事先固定。
+于是坐标二不花一分钱 —— 下面每个期望都是真正可求值的有限和 —— 我们可以全心全意对付坐标一。
+这是全文唯一处处可以笔算检验的部分，值得一点耐心：这里定义的对象，会以近似的形式出现在后面的每一个方法里。</p>
+
+<h3>3.1 选择原理 I：最大间隔（Abbeel &amp; Ng, 2004）</h3>
+<p>在所有与数据一致的奖励里，偏好那个让专家<strong>以最大间隔</strong>胜过对手的奖励。因为 $w\mapsto\alpha w$
+会缩放任何间隔，需要范数约束让问题有界：</p>
+<p class="mrow">$\max_{\xi,w}\ \xi \quad\text{s.t.}\quad w^\top\mu_E \ge w^\top\mu(\pi_i)+\xi,\ \ i=0,\dots,k-1,\qquad \|w\|_2\le1$</p>
+<p>它是硬间隔 SVM 的伪装：$\mu_E$ 是唯一的正例，$\{\mu(\pi_i)\}$ 是负例。对偶是距离问题
+$\min_{\bar\mu\in\mathrm{conv}\{\mu(\pi_i)\}}\|\mu_E-\bar\mu\|_2$，最优 $w\propto\mu_E-\bar\mu$。
+几何内容很清楚：<strong>奖励方向永远从"当前最好的模仿"指向"专家"。</strong></p>
+
+<div class="callout warn">
+  <span class="ct">算法返回的是混合策略，不是最后一个策略</span>
+  <p>可证明接近 $\mu_E$ 的是 $\{\mu(\pi_i)\}$ <strong>凸包</strong>里的一个点，
+  而特征期望的凸组合要靠在策略上随机化来实现，任何单个策略都做不到。
+  这成立是因为占据度度量线性可混：$\rho_{\tilde\pi}=\sum_i\lambda_i\rho_{\pi_i}$。
+  把"最后一个策略"返回出去的讲法，悄悄把定理丢了。</p>
+</div>
+
+<p><strong>特征匹配就足够了</strong>（引理）：若 $\|\mu(\pi)-\mu_E\|_2\le\varepsilon$，则对任意 $\|w\|_2\le1$，
+由 Cauchy–Schwarz 有 $|J_{R_w}(\pi)-w^\top\mu_E|\le\varepsilon$。<strong>匹配特征期望，就在不知道真值的前提下，
+同时对类内每个奖励匹配了期望回报。</strong>这个引理既是模仿学习绕开识别的原因，也清楚地说出了自己的局限：
+保证只在 $w\in\mathbb{R}^d$ 上量化，对 $\mathrm{span}\{\phi_1,\dots,\phi_d\}$ 之外的奖励一无所知。</p>
+
+<p><strong>局限，精确陈述</strong>：(1) 并列被任意打破；(2) 次优专家会让可行集收缩甚至变空，而且没有似然吸收噪声
+——这正是 MaxEnt 填补的缺口；(3) 每次迭代的内部求解是完整的前向 RL；(4) 它对"哪个奖励对"保持沉默。</p>
+
+<div class="callout ledger">
+  <span class="ct">台账 · 最大间隔 IRL</span>
+  <p><strong>假设（坐标一）</strong>：专家精确最优；奖励在固定 $\phi$ 上线性；并列由最大间隔打破。<br>
+  <strong>近似（坐标二）</strong>：在安全角落里没有近似，$\mu(\pi)$ 来自精确线性求解，内部 RL 精确。
+  每次迭代成本是一次完整前向 RL 求解 + 一个 QP。<br>
+  <strong>交付</strong>：一个匹配 $\mu_E$ 的混合策略，加上一个解释力很弱的奖励方向 $w$。</p>
+</div>
+
+<h3 id="maxent">3.2 选择原理 II：最大熵 IRL（Ziebart et al., 2008）</h3>
+
+<p>最大间隔把专家当作不会犯错的。真实演示是有噪声的，而且是<strong>系统性</strong>的噪声：
+在两条路之间无所谓的专家会各走一半，而建立在严格不等式上的方法对此无话可说。
+Ziebart 等人把不等式模型换成概率模型，再用最大熵在幸存模型里做选择。</p>
+
+<div class="callout">
+  <span class="ct">本节的设定（请记住）</span>
+  <p>有限 $\mathcal{S}$、有限 $\mathcal{A}$、有限 horizon $T$、已知核 $P$，并按原文取 $\gamma=1$，
+  记 $\Phi(\tau)=\sum_{t=0}^{T-1}\phi(s_t,a_t)$。折扣与无限 horizon 在第四部分恢复，
+  那里会解释为什么它们比"插入 $\gamma^t$"更微妙。</p>
+</div>
+
+<h4>3.2.1 为什么要对"轨迹分布"建模？参考测度 $q$</h4>
+<p>我们想要一个模型 $p(\tau)$，(i) 复现专家的特征统计量，(ii) 除此之外不做任何承诺。
+第二个要求就是"最大熵"的形式化。但<strong>熵的基准是什么</strong>？多数讲述在这里出错，所以我们慢慢来。</p>
+
+<p>一条轨迹由两个主体产生：学习者选动作，环境选后继状态。如果直接最大化朴素 Shannon 熵 $-\sum_\tau p\log p$，
+就隐含地把每条轨迹先验地视为同等可能，包括环境几乎绝不会产生的轨迹。这显然不对。
+解决办法是相对于一个编码"环境做什么"的参考测度来度量熵。</p>
+
+<p><strong>定义（动力学诱导的参考测度）</strong>：对 $\tau=(s_0,a_0,\dots,s_T)$，</p>
+<p class="mrow">$q(\tau) \triangleq d_0(s_0)\prod_{t=0}^{T-1}P(s_{t+1}\mid s_t,a_t)$</p>
+
+<div class="callout">
+  <span class="ct">注意：$q$ 是测度，不是概率分布</span>
+  <p>对 $\mathcal{T}$ 求和得 $\sum_\tau q(\tau)=|\mathcal{A}|^T$，因为 $q$ 积掉了环境但没积掉动作。
+  它正是"对自己的选择取均匀、对自然的变化保持诚实"的先验。下面的推导<strong>不要求 $q$ 归一化</strong>。</p>
+</div>
+
+<p><strong>定义（相对熵目标）</strong>：</p>
+<p class="mrow">$\mathcal{H}_q(p) \triangleq -\sum_{\tau\in\mathcal{T}}p(\tau)\log\frac{p(\tau)}{q(\tau)} = -\mathrm{KL}(p\,\|\,q)$</p>
+<p>当 $P$ 确定且 $d_0$ 均匀时，$q$ 在可行轨迹上是常数，$\mathcal{H}_q$ 在相差一个加性常数的意义上退化为 Shannon 熵。
+这个特殊情形正是通常被讲述的情形；它不是一般情形。</p>
+
+<div class="callout warn">
+  <span class="ct">这个定义防止的两个错误</span>
+  <p><strong>(1) 事后补丁错误。</strong>若最大化朴素 Shannon 熵，稳定解是 $p(\tau)\propto e^{w^\top\Phi(\tau)}$，
+  <strong>没有动力学因子</strong>。很多讲述先推出它，后面又毫不解释地声称"其实"是 $p(\tau)\propto q(\tau)e^{w^\top\Phi(\tau)}$。
+  这是两个不同规划的解。从第一行就把 $q$ 放进目标，推导和最终公式才会一致。</p>
+  <p><strong>(2) 连续统错误。</strong>若从连续轨迹空间上的 $-\int p\log p\,d\tau$ 出发，目标是<strong>微分熵</strong>：
+  它在 $\tau$ 的重参数化下<strong>会改变值</strong>（不具不变性），也没有上界。相对熵 $-\mathrm{KL}(p\|q)$ 两个毛病都没有。</p>
+</div>
+
+<h4>3.2.2 原始规划</h4>
+<p class="mrow">$
+\max_p\ \ \mathcal{H}_q(p) = -\textstyle\sum_\tau p(\tau)\log\frac{p(\tau)}{q(\tau)}\quad
+\text{s.t.}\ \ \sum_\tau p(\tau)\Phi(\tau)=\mu_E,\quad \sum_\tau p(\tau)=1,\ p(\tau)\ge0$</p>
+<p>可行集是单纯形与 $d$ 个仿射约束的交集，$\mathcal{H}_q$ 在其上严格凹，故解唯一（若可行集非空）。
+注意这个唯一性是关于<strong>分布</strong>的，不是关于<strong>奖励</strong>的；第二部分的可识别性问题依然成立。</p>
+
+<h4>3.2.3 【逐步推导】变分推导</h4>
+<p>这是 MaxEnt 的核心推导。我们把它拆成四步，每一步只做一件事。你可以点击按钮一步步展开，
+也可以直接通读（若脚本不可用，全部步骤默认可见）。</p>
+
+<div class="derivation" data-der>
+<div class="dstep" data-step="1">
+  <div class="dh">第 1 步 · 写出拉格朗日函数</div>
+  <p>对特征匹配约束引入乘子 $w\in\mathbb{R}^d$，对归一化约束引入乘子 $c\in\mathbb{R}$：</p>
+  <p>$\mathcal{L}(p,w,c) = -\sum_\tau p(\tau)\log\frac{p(\tau)}{q(\tau)} + w^\top\Big(\sum_\tau p(\tau)\Phi(\tau)-\mu_E\Big) + c\Big(\sum_\tau p(\tau)-1\Big)$</p>
+  <p class="dhint">三个项分别是：相对熵目标、"特征等于 $\mu_E$"的罚项、"概率和为一"的罚项。</p>
+</div>
+<div class="dstep" data-step="2">
+  <div class="dh">第 2 步 · 对 $p(\tau)$ 求驻点</div>
+  <p>固定一条 $\tau$，把 $\mathcal{L}$ 当作标量 $p(\tau)$ 的一元函数，对它求偏导并令其为零。
+  用 $\frac{\partial}{\partial p}\big[-p\log(p/q)\big] = -\log\frac{p}{q}-1$：</p>
+  <p>$\frac{\partial\mathcal{L}}{\partial p(\tau)} = -\log\frac{p(\tau)}{q(\tau)} - 1 + w^\top\Phi(\tau) + c = 0$</p>
+  <p class="dhint">这一步只是"对每个 $\tau$ 分别求导"。凸问题的驻点即最优。</p>
+</div>
+<div class="dstep" data-step="3">
+  <div class="dh">第 3 步 · 解出 $p(\tau)$ 的形式</div>
+  <p>把第 2 步的方程移项：</p>
+  <p>$\log\frac{p(\tau)}{q(\tau)} = w^\top\Phi(\tau) + c - 1 \quad\Longrightarrow\quad p(\tau) = q(\tau)\,\exp\!\big(w^\top\Phi(\tau) + c - 1\big)$</p>
+  <p class="dhint">已经能看到结构：动力学因子 $q(\tau)$ 乘上奖励的指数。剩下的只是把常数 $c$ 定下来。</p>
+</div>
+<div class="dstep" data-step="4">
+  <div class="dh">第 4 步 · 用归一化定出常数，得到模型</div>
+  <p>把 $\sum_\tau p(\tau)=1$ 代入：$e^{c-1}\sum_\tau q(\tau)e^{w^\top\Phi(\tau)}=1$，即 $e^{c-1}=1/Z(w)$，其中</p>
+  <p>$Z(w) \triangleq \sum_{\tau\in\mathcal{T}} q(\tau)\,e^{w^\top\Phi(\tau)}$</p>
+  <p>于是得到最大熵轨迹模型：</p>
+  <p>$p_w(\tau) = \frac{1}{Z(w)}\,\underbrace{q(\tau)}_{\text{environment}}\;\underbrace{e^{w^\top\Phi(\tau)}}_{\text{agent}}$</p>
+  <p class="dhint">两条回报相同的轨迹<strong>不必</strong>等概率：环境抗拒的那条更稀有。
+  回报指数好的轨迹指数地更可能，但永不确定 —— 这正是最大间隔缺少的、对次优专家的优雅处理。</p>
+</div>
+<button class="reveal-btn" type="button">显示下一步 →</button>
+</div>
+
+<h4>3.2.4 对偶就是最大似然，而且凸</h4>
+<p>把 $p_w$ 代回拉格朗日函数：由 $\log p_w(\tau)-\log q(\tau)=w^\top\Phi(\tau)-\log Z(w)$，
+熵项变成 $-w^\top\sum_\tau p\Phi+\log Z$，归一化项消失，特征项抵消第一部分，剩下</p>
+<p class="mrow">$g(w) \triangleq \log Z(w) - w^\top\mu_E \quad\text{（对 }w\text{ 求最小）}$</p>
+<p>最小化 $g$ 就是最大化演示的平均对数似然：</p>
+<p class="mrow">$\tfrac1m\sum_i\log p_w(\tau^{(i)}) = \underbrace{w^\top\mu_E-\log Z(w)}_{=-g(w)} + \underbrace{\tfrac1m\sum_i\log q(\tau^{(i)})}_{\text{不含 }w}$</p>
+<p>被丢掉的那项是观测转移在真实动力学下的对数似然，是优化常数，所以通常不可见。</p>
+
+<p><strong>凸性</strong>：$\nabla_w\log Z(w)=\mathbb{E}_{p_w}[\Phi(\tau)]$，
+$\nabla_w^2\log Z(w)=\mathrm{Cov}_{p_w}[\Phi]\succeq0$。故 $g$ 凸；当 $\Phi$ 不是几乎必然落在某个真仿射子空间时严格凸、
+$w$ 最优值唯一。</p>
+
+<div class="callout ok">
+  <span class="ct">学习规则（请记住这一式）</span>
+  <p>$-\nabla_w g(w) = \mu_E - \mathbb{E}_{p_w}[\Phi(\tau)]$</p>
+  <p>梯度上升驱动 $w$ 去弥合"专家做了什么"与"当前模型预测什么"之间的差距。最优处两者重合。</p>
+</div>
+
+<div class="callout">
+  <span class="ct">一个值得注意的张力</span>
+  <p>上面说奖励<strong>参数</strong> $w$ 有唯一最优；第二部分说奖励<strong>函数</strong>不可识别。两者都对。
+  调和的方式是：最大熵是一个选择原理，它从等价类里挑出一点，而且挑得唯一。
+  <strong>估计量的唯一性不是被估计量的可识别性。</strong></p>
+</div>
+
+<h4 id="computingz">3.2.5 【逐步推导】计算 $Z$：全部困难的具象化</h4>
+<p>学习规则看起来像两行的算法，而本文剩下的全部篇幅，都因 $\mathbb{E}_{p_w}[\Phi]$ 这个无辜的项而存在。
+求它需要 $Z(w)$，而 $Z(w)$ 是对 $\mathcal{T}$ 求和。</p>
+
+<div class="derivation" data-der>
+<div class="dstep" data-step="1">
+  <div class="dh">第 1 步 · 承认枚举无望，但它是有限的</div>
+  <p>$|\mathcal{A}|$ 个动作、horizon $T$，则 $|\mathcal{T}|$ 像 $|\mathcal{A}|^T$ 一样增长。
+  $5\times5$ 网格世界、4 个动作、$T=20$ 就是 $4^{20}\approx10^{12}$ 条轨迹。有限，但不可能枚举。
+  <strong>离散化的价值不在于我们去枚举，而在于 $Z$ 因此被无歧义地"定义"出来，于是我们可以寻找结构。</strong></p>
+</div>
+<div class="dstep" data-step="2">
+  <div class="dh">第 2 步 · 发现结构：$q$ 是可分解的</div>
+  <p>因为 $q(\tau)=d_0(s_0)\prod_t P(s_{t+1}\mid s_t,a_t)$ 且 $\Phi(\tau)=\sum_t\phi(s_t,a_t)$，
+  对轨迹求和可以<strong>望远镜式地</strong>收缩成对状态的后向递推。</p>
+</div>
+<div class="dstep" data-step="3">
+  <div class="dh">第 3 步 · 写出后向递推</div>
+  <p>令 $Z_T(s)\triangleq1$，对 $t=T-1,\dots,0$：</p>
+  <p>$Z_t(s) = \sum_{a\in\mathcal{A}} e^{R_w(s,a)} \sum_{s'\in\mathcal{S}} P(s'\mid s,a)\,Z_{t+1}(s')$</p>
+  <p>则 $Z(w)=\sum_s d_0(s)Z_0(s)$。写成对数形式 $V_t(s)=\log Z_t(s)$：</p>
+  <p>$V_t(s) = \log\sum_a \exp\Big(R_w(s,a) + \underbrace{\log\textstyle\sum_{s'}P(s'\mid s,a)e^{V_{t+1}(s')}}_{=:\,Q_t(s,a)}\Big)$</p>
+  <p class="dhint">代价从枚举全部 $O(|\mathcal{A}|^{T})$ 条轨迹降到 $O(T|\mathcal{S}|^2|\mathcal{A}|)$。</p>
+</div>
+<div class="dstep" data-step="4">
+  <div class="dh">第 4 步 · 指出 $P$ 在哪里被用到（第一次）</div>
+  <p>看上面第 3 步的式子：核 $P(s'\mid s,a)$ 在内层求和里被消耗，每个 $(s,a)$、每个时间步一次。
+  这是 MaxEnt IRL 需要模型的<strong>两个</strong>位置中的<strong>第一个</strong>。第二个在 3.2.8 的前向传播。
+  当第四部分问"若 $P$ 未知会怎样"，这两个求和就是问题的全部内容。</p>
+</div>
+<button class="reveal-btn" type="button">显示下一步 →</button>
+</div>
+
+<h4>3.2.6 【手算验证】一个可以笔算检验的例子</h4>
+<p>取 $\mathcal{S}=\{s_1,s_2\}$，$\mathcal{A}=\{L,R\}$，$d_0=\delta_{s_1}$，$T=2$，确定性动力学：
+$L$ 走到 $s_1$、$R$ 走到 $s_2$（从任一状态出发皆然）。奖励 $R(s_1,L)=0$、$R(s_1,R)=1$、
+$R(s_2,L)=0$、$R(s_2,R)=2$。</p>
+
+<p><strong>按枚举</strong>（四个动作序列）：</p>
+<table class="min">
+<thead><tr><th>序列</th><th>路径</th><th>回报</th><th>权重 $e^{\text{回报}}$</th></tr></thead>
+<tbody>
+<tr><td><code>LL</code></td><td>$s_1\to s_1\to s_1$</td><td>$0+0=0$</td><td>$1.0000$</td></tr>
+<tr><td><code>LR</code></td><td>$s_1\to s_1\to s_2$</td><td>$0+1=1$</td><td>$2.7183$</td></tr>
+<tr><td><code>RL</code></td><td>$s_1\to s_2\to s_1$</td><td>$1+0=1$</td><td>$2.7183$</td></tr>
+<tr><td><code>RR</code></td><td>$s_1\to s_2\to s_2$</td><td>$1+2=3$</td><td>$20.0855$</td></tr>
+<tr><td></td><td></td><td>$Z=$</td><td>$\mathbf{26.5221}$</td></tr>
+</tbody>
+</table>
+
+<p><strong>按后向递推</strong>（$V_2\equiv0$）：</p>
+<p>$\;V_1(s_1)=\log(e^0+e^1)=1.3133,\quad V_1(s_2)=\log(e^0+e^2)=2.1269$<br>
+$\;Q_0(s_1,L)=0+V_1(s_1)=1.3133,\quad Q_0(s_1,R)=1+V_1(s_2)=3.1269$<br>
+$\;V_0(s_1)=\log(e^{1.3133}+e^{3.1269})=3.2779,\quad Z=e^{V_0(s_1)}=\mathbf{26.522}$ ✓</p>
+
+<p>第一个动作概率两种算法也一致：</p>
+<p>$p_w(a_0=R)=e^{Q_0(s_1,R)-V_0(s_1)}=\frac{22.803}{26.522}=0.8598=\frac{e^1+e^3}{Z}=\frac{22.804}{26.522}$ ✓</p>
+
+<div class="callout ok">
+  <span class="ct">这个例子在教什么</span>
+  <p>四条轨迹塌缩成四个 $(s,a)$ 求值。$T=20$ 时同样的塌缩把 $10^{12}$ 变成 $160$。
+  <strong>这就是"坐标二"在安全角落里免费的含义</strong> —— 而一旦 $\mathcal{S}$ 变大或 $P$ 变未知，
+  这两个求和就不再可算，整个后半段的方法就开始了。</p>
+</div>
+
+<h4 id="causaltrap">3.2.7 随机动力学的陷阱，以及最大<em>因果</em>熵</h4>
+<p>上面的例子是确定性的，这不是偷懒。回看 $V_t$ 里的内层项：</p>
+<p class="mrow">$\log\sum_{s'}P(s'\mid s,a)\,e^{V_{t+1}(s')}$</p>
+<p>它是对后继状态的 <strong>软最大值</strong>（soft max，即 log-sum-exp），不是期望。由 Jensen 不等式 $\log\mathbb{E}[e^X]\ge\mathbb{E}[X]$，
+它系统性地高估结果方差大的动作。这个毛病不只是公式里的偏差，它是关于"模型相信什么"的陈述。</p>
+
+<p><strong>命题（朴素模型偷偷改写了动力学）</strong>：在 $p_w$ 之下，后继状态的条件分布是</p>
+<p class="mrow">$p_w(s_{t+1}=s'\mid s_t=s,a_t=a) = \frac{P(s'\mid s,a)e^{V_{t+1}(s')}}{\sum_{s''}P(s''\mid s,a)e^{V_{t+1}(s'')}} \ne P(s'\mid s,a)$</p>
+<p>（把 $p_w$ 对 $s_{t+1}$ 之后的所有后缀边缘化，后缀求和贡献因子 $Z_{t+1}(s')=e^{V_{t+1}(s')}$。）</p>
+
+<div class="callout warn">
+  <span class="ct">这意味着什么</span>
+  <p>带随机动力学的最大熵轨迹模型，不是"一个 agent 在给定 MDP 里选动作"的模型，
+  而是"一个<strong>同时把自然偏向好运结果</strong>的 agent"的模型。拟合真实专家时，它会把运气好的结果解释为有意为之，
+  推出奖励运气的奖励函数。确定性 MDP 里这个倾斜是空的（$P$ 是点质量），所以原文的讲述没问题，
+  也所以这个问题特别容易被漏掉。</p>
+</div>
+
+<p>补救办法是停止对任意轨迹分布做优化，转而对<strong>策略</strong>做优化，迫使真实动力学以不可改动的因子出现。</p>
+
+<p><strong>定义（因果熵）</strong>：对（可能时间依赖的）策略 $\pi$，
+$p_\pi(\tau)=d_0(s_0)\prod_t\pi_t(a_t\mid s_t)P(s_{t+1}\mid s_t,a_t)$，</p>
+<p class="mrow">$\mathcal{H}^{\mathrm{causal}}(\pi) \triangleq \mathbb{E}_{p_\pi}\Big[\textstyle\sum_{t=0}^{T-1}-\log\pi_t(a_t\mid s_t)\Big]$</p>
+<p>只有 agent 自己的选择被算作不确定性；自然提供的随机性不算在 agent 头上。</p>
+
+<p><strong>定理（最大因果熵 IRL）</strong>：在 $\mathbb{E}_{p_\pi}[\Phi]=\mu_E$ 约束下最大化因果熵，
+解是 $R_w=w^\top\phi$（$w$ 是乘子）的软最优策略，由后向递推给出：</p>
+<p>$\;Q_t(s,a) = R_w(s,a) + \sum_{s'}P(s'\mid s,a)V_{t+1}(s'),\quad
+V_t(s) = \log\sum_a\exp Q_t(s,a),\quad
+\pi_t(a\mid s) = \exp\big(Q_t(s,a)-V_t(s)\big)$</p>
+<p>（$V_T\equiv0$）。对偶目标仍凸，梯度仍是 $\mu_E-\mathbb{E}_{p_\pi}[\Phi]$。</p>
+
+<div class="callout accent">
+  <span class="ct">一个符号的差别（请对比着看）</span>
+  <p>朴素 MaxEnt 对动作与后继状态<em>都</em>取软最大值；最大因果熵对动作取软最大值、对后继状态取<em>普通期望</em>：</p>
+  <p>朴素：$\ \log\sum_a\exp\big(R + \log\textstyle\sum_{s'}Pe^{V}\big)$<br>
+  因果：$\ \log\sum_a\exp\big(R + \sum_{s'}P\,V\big)$</p>
+  <p>两者恰在 $P$ 确定时相等。所有现代方法（soft $Q$-learning、SAC、GAIL 的熵项、AIRL）都用因果版本。
+  论文说"MaxEnt IRL"时，几乎总是指这个。</p>
+</div>
+
+<h4 id="forwardpass">3.2.8 前向传播：从策略到期望特征</h4>
+<p>后向传播给出策略。我们还需要 $\mathbb{E}_{p_\pi}[\Phi]$，这需要知道该策略<strong>会去哪里</strong>。这是前向扫描。</p>
+<p><strong>命题（前向状态访问递推）</strong>：令 $d_t(s)=\mathrm{Pr}_{p_\pi}(s_t=s)$，则 $d_0$ 已知，且</p>
+<p class="mrow">$d_{t+1}(s') = \sum_{s}\sum_{a} d_t(s)\,\pi_t(a\mid s)\,P(s'\mid s,a)$</p>
+<p class="mrow">$\mathbb{E}_{p_\pi}[\Phi] = \sum_{t=0}^{T-1}\sum_{s,a} d_t(s)\pi_t(a\mid s)\phi(s,a)$</p>
+
+<div class="callout accent">
+  <span class="ct">$P$ 在哪里被用到？第二次，也是最后一次</span>
+  <p>就是上面这条前向递推。它和 $Q_t$ 的后向期望一起，构成精确 MaxEnt IRL 对 $P$ 的<em>仅有的两个</em>消费者。
+  后向传播算"agent 会做什么"；前向传播算"做了会到哪"。两者都需要核，都不需要别的。</p>
+</div>
+
+<h4 id="occupancy">3.2.9 占据度度量：同一个对象，更好的名字</h4>
+<p>上面 $\mathbb{E}_{p_\pi}[\Phi]$ 是对状态-动作对的加权平均。给这个加权起个名字会带来巨大回报。</p>
+<p><strong>定义（折扣占据度度量）</strong>：</p>
+<p class="mrow">$\rho_\pi(s,a) \triangleq (1-\gamma)\sum_{t=0}^\infty\gamma^t\,\mathrm{Pr}_\pi(s_t=s,a_t=a)$</p>
+<p>它是 $\mathcal{S}\times\mathcal{A}$ 上的概率分布，且</p>
+<p class="mrow">$\mu(\pi)=\frac{1}{1-\gamma}\sum_{s,a}\rho_\pi(s,a)\phi(s,a),\qquad J_R(\pi)=\frac{1}{1-\gamma}\sum_{s,a}\rho_\pi(s,a)R(s,a)$</p>
+<p><strong>占据度不是动作频率。</strong>$\rho_\pi$ 是对<strong>数对</strong>的分布。"在行人前刹车"和"在空旷高速上刹车"是不同事件，
+因为状态不同。MaxEnt IRL 从不只数动作标签。</p>
+<p>上面第二式说：回报是占据度的<strong>线性泛函</strong>。第五部分就建立在这句话上。</p>
+
+<h4>3.2.10 完整的精确算法</h4>
+<p>目标凸，任何递减步长的梯度方案都收敛到 $w$ 的全局最优。每次迭代每趟 $O(T|\mathcal{S}|^2|\mathcal{A}|)$
+—— 对 horizon 线性、对状态数二次。<strong>那个二次项，就是接触真实问题时最先活不下来的东西。</strong></p>
+
+<figure style="margin:1.6em 0 2em;text-align:center">
+<svg viewBox="0 0 720 300" role="img" aria-label="MaxEnt IRL 的两趟传播" style="width:100%;max-width:700px;height:auto">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2f4b7c"/></marker>
+    <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#a03a2e"/></marker>
+  </defs>
+  <!-- backward pass -->
+  <rect x="30" y="34" width="300" height="120" rx="4" fill="#eef2f8" stroke="#2f4b7c" stroke-width="1.2"/>
+  <text x="180" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#22375a" font-family="sans-serif">后向传播 · 从终点倒推</text>
+  <text x="180" y="82" text-anchor="middle" font-size="12.5" fill="#333" font-family="sans-serif">V_T ≡ 0</text>
+  <text x="180" y="104" text-anchor="middle" font-size="12.5" fill="#333" font-family="sans-serif">Q_t = R_w + Σ_{s′} P(s′|s,a) V_{t+1}</text>
+  <text x="180" y="126" text-anchor="middle" font-size="12.5" fill="#333" font-family="sans-serif">V_t = log Σ_a exp Q_t　→　π_t</text>
+  <line x1="275" y1="136" x2="85" y2="136" stroke="#2f4b7c" stroke-width="1.8" marker-end="url(#ar)"/>
+  <text x="180" y="152" text-anchor="middle" font-size="11" fill="#2f4b7c" font-family="sans-serif">t = T−1 … 0　【用 P · 算“agent 会做什么”】</text>
+  <!-- forward pass -->
+  <rect x="390" y="34" width="300" height="120" rx="4" fill="#fbf2f0" stroke="#a03a2e" stroke-width="1.2"/>
+  <text x="540" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#7d2c23" font-family="sans-serif">前向传播 · 从起点正推</text>
+  <text x="540" y="82" text-anchor="middle" font-size="12.5" fill="#333" font-family="sans-serif">d_0 = 初始分布</text>
+  <text x="540" y="104" text-anchor="middle" font-size="12.5" fill="#333" font-family="sans-serif">d_{t+1}(s′) = Σ_{s,a} d_t π_t P(s′|s,a)</text>
+  <text x="540" y="126" text-anchor="middle" font-size="12.5" fill="#333" font-family="sans-serif">μ̂ = Σ_{t,s,a} d_t π_t φ</text>
+  <line x1="445" y1="136" x2="635" y2="136" stroke="#a03a2e" stroke-width="1.8" marker-end="url(#ar2)"/>
+  <text x="540" y="152" text-anchor="middle" font-size="11" fill="#a03a2e" font-family="sans-serif">t = 0 … T−1　【用 P · 算“做了会到哪”】</text>
+  <!-- arrows between -->
+  <line x1="180" y1="154" x2="180" y2="196" stroke="#2f4b7c" stroke-width="1.8" marker-end="url(#ar)"/>
+  <line x1="540" y1="154" x2="540" y2="196" stroke="#a03a2e" stroke-width="1.8" marker-end="url(#ar2)"/>
+  <!-- outputs -->
+  <rect x="90" y="200" width="180" height="34" rx="4" fill="#fff" stroke="#2f4b7c" stroke-width="1"/>
+  <text x="180" y="221" text-anchor="middle" font-size="12" fill="#22375a" font-family="sans-serif">输出：软最优策略 π_t</text>
+  <rect x="450" y="200" width="180" height="34" rx="4" fill="#fff" stroke="#a03a2e" stroke-width="1"/>
+  <text x="540" y="221" text-anchor="middle" font-size="12" fill="#7d2c23" font-family="sans-serif">输出：模型特征 μ̂</text>
+  <!-- gradient -->
+  <rect x="150" y="256" width="420" height="30" rx="4" fill="#f1f6f2" stroke="#3d6b4f" stroke-width="1"/>
+  <text x="360" y="276" text-anchor="middle" font-size="12.5" fill="#2c4f39" font-family="sans-serif">梯度更新：w ← w + η (μ_E − μ̂)　μ_E 来自演示，不需要 P</text>
+  <line x1="180" y1="234" x2="300" y2="256" stroke="#3d6b4f" stroke-width="1.2" marker-end="url(#ar)"/>
+  <line x1="540" y1="234" x2="420" y2="256" stroke="#3d6b4f" stroke-width="1.2" marker-end="url(#ar)"/>
+  <text x="360" y="24" text-anchor="middle" font-size="11.5" fill="#7a7872" font-family="sans-serif">两趟传播，就是对 P 的仅有的两次使用 —— 这是“出口 C”的全部内容</text>
+</svg>
+<figcaption style="font-size:.85em;color:#7a7872;margin-top:.4em">精确 MaxEnt IRL 的一次迭代。两趟传播各自消费一次 $P$；
+专家的 $\mu_E$ 只是对演示求平均，完全不需要模型。</figcaption>
+</figure>
+
+<div class="callout">
+  <span class="ct">算法 · 精确最大因果熵 IRL（有限 $\mathcal{S},\mathcal{A}$，已知 $P$）</span>
+  <ol>
+    <li>$\mu_E \gets \frac1m\sum_i\Phi(\tau^{(i)})$；初始化 $w\gets0$。</li>
+    <li>循环 $k=1,2,\dots$ 直到 $\|\mu_E-\hat\mu\|$ 很小：</li>
+    <li style="list-style:none;margin-left:1.2em">a. $R_w(s,a)\gets w^\top\phi(s,a)$；</li>
+    <li style="list-style:none;margin-left:1.2em">b. <strong>后向传播</strong>：$V_T\equiv0$，$t=T-1,\dots,0$ 算 $Q_t,V_t,\pi_t$（用 $P$）；</li>
+    <li style="list-style:none;margin-left:1.2em">c. <strong>前向传播</strong>：$t=0,\dots,T-1$ 传播 $d_{t+1}$（用 $P$）；</li>
+    <li style="list-style:none;margin-left:1.2em">d. $\hat\mu\gets\sum_{t,s,a}d_t(s)\pi_t(a\mid s)\phi(s,a)$；</li>
+    <li style="list-style:none;margin-left:1.2em">e. $w\gets w+\eta(\mu_E-\hat\mu)$（就是学习规则）。</li>
+    <li>返回 $w$ 与软最优策略 $\pi$。</li>
+  </ol>
+</div>
+
+<div class="callout ledger">
+  <span class="ct">台账 · 精确 MaxEnt / MaxCausalEnt IRL</span>
+  <p><strong>假设（坐标一）</strong>：专家是 Boltzmann-理性的（指数地偏好更好的轨迹，而非总选最好的）；
+  奖励在固定 $\phi$ 上线性；在所有匹配 $\mu_E$ 的模型里取最大因果熵那个。<br>
+  <strong>近似（坐标二）</strong>：没有近似。$Z$ 由后向传播精确算，$\mathbb{E}[\Phi]$ 由前向传播精确算。
+  前提是：有限 $\mathcal{S},\mathcal{A}$，且 $P$ 有闭式。<br>
+  <strong>交付</strong>：唯一 $w$（凸问题）、随专家噪声优雅退化的随机策略、以及一个似然 ——
+  于是模型可比较、可正则化、可加先验，这些最大间隔都做不到。<br>
+  <strong>何时失效</strong>：$|\mathcal{S}|$ 大或连续、horizon 无限、或 $P$ 未知。
+  这正是第四部分的三个出口。</p>
+</div>
+</section>
+
+<div class="pacemarker">后半部分 · 放慢节奏，逐步推导<div class="pacebar"><i></i></div></div>
+
+<!-- ================= 第四部分 ================= -->
+<section id="p4">
+<h2><span class="n">第四部分</span>离开安全角落的三个出口</h2>
+
+<p>上面的算法是完整、正确、全局收敛的 IRL 方法。它在任何真正有人关心的问题上都不可用，原因有三个，
+每个都对应我们进入第三部分时做的一个假设，每个都是每个读 IRL 文献的人最终会问的问题。
+我们一个个处理，每次都问两件事：<strong>什么活下来了，什么必须被替换？</strong></p>
+
+<h3 id="exita">4.1 出口 A：问题不是有限的时候</h3>
+
+<p>"不是有限"其实藏着三个不同困难：无界 horizon、无界状态数、连续动作。它们的失效方式不同。</p>
+
+<h4>4.1.1 无限 horizon：为什么轨迹熵会"死掉"</h4>
+<p>有限步长（finite horizon）的推导在 $T\to\infty$ 时<strong>按字面撑不住</strong>，原因不在回报，在<strong>熵</strong>：
+因果熵 $\mathbb{E}[\sum_{t &lt; T}-\log\pi(a_t\mid s_t)]$ 对任何非确定性策略都随 $T$ 线性增长，目标发散。
+修补办法和我们已经在奖励上用的折扣一样。</p>
+
+<p><strong>定义（折扣因果熵与软目标）</strong>：</p>
+<p class="mrow">$\mathcal{H}_\gamma(\pi) = \mathbb{E}_\pi\Big[\textstyle\sum_{t=0}^\infty\gamma^t\big(-\log\pi(a_t\mid s_t)\big)\Big],\qquad J_R^\beta(\pi) = J_R(\pi) + \beta\,\mathcal{H}_\gamma(\pi)$</p>
+<p>温度 $\beta &gt; 0$ 现在显式出现；第三部分用的是 $\beta=1$。</p>
+
+<h4>4.1.2 软 Bellman 算子与收敛性</h4>
+<p><strong>定义</strong>：$(\mathcal{B}_{\mathrm{soft}}Q)(s,a) = R(s,a) + \gamma\,\mathbb{E}_{s'\sim P(\cdot\mid s,a)}\big[\beta\log\sum_{a'}\exp(Q(s',a')/\beta)\big]$。</p>
+<p><strong>引理（log-sum-exp 是非扩张）</strong>：对 $x,y\in\mathbb{R}^{|\mathcal{A}|}$、$\beta &gt; 0$，
+$\big|\beta\log\sum_a e^{x_a/\beta}-\beta\log\sum_a e^{y_a/\beta}\big|\le\|x-y\|_\infty$。</p>
+<div class="derivation" data-der>
+<div class="dstep" data-step="1">
+  <div class="dh">证明 · 第 1 步</div>
+  <p>令 $\delta=\|x-y\|_\infty$。则对每个 $a$ 有 $x_a\le y_a+\delta$。</p>
+</div>
+<div class="dstep" data-step="2">
+  <div class="dh">证明 · 第 2 步</div>
+  <p>于是 $\sum_a e^{x_a/\beta}\le e^{\delta/\beta}\sum_a e^{y_a/\beta}$。</p>
+</div>
+<div class="dstep" data-step="3">
+  <div class="dh">证明 · 第 3 步</div>
+  <p>两边取 $\beta\log$：$\beta\log\sum_a e^{x_a/\beta}\le\beta\log\sum_a e^{y_a/\beta}+\delta$。
+  交换 $x,y$ 得反向不等式。两个方向合起来即 $|\cdot|\le\delta$。∎</p>
+</div>
+<button class="reveal-btn" type="button">显示证明下一步 →</button>
+</div>
+
+<p><strong>定理</strong>：$\mathcal{B}_{\mathrm{soft}}$ 在 $\|\cdot\|_\infty$ 下是 $\gamma$-压缩，
+故有唯一不动点 $Q_{\mathrm{soft}}$，软值迭代几何收敛，软最优策略
+$\pi_{\mathrm{soft}}(a\mid s)\propto\exp(Q_{\mathrm{soft}}(s,a)/\beta)$ 最大化软目标。</p>
+
+<div class="callout">
+  <span class="ct">温度在插值</span>
+  <p>由 $\max_aQ(s,a)\le\beta\log\sum_ae^{Q(s,a)/\beta}\le\max_aQ(s,a)+\beta\log|\mathcal{A}|$，
+  软算子处处在 $\mathcal{B}^\star$ 的 $\beta\log|\mathcal{A}|$ 邻域内。
+  $\beta\to0$ 恢复硬最优性与最大间隔的行为模型；$\beta\to\infty$ 策略变均匀，演示被当作无信息。
+  <strong>温度是坐标一上的建模选择</strong>：它说你认为专家有多理性。从数据拟合 $\beta$ 可以，但与 $R$ 的尺度纠缠
+  —— $(R,\beta)$ 与 $(cR,c\beta)$ 给出同一策略，又是可识别性主题的一个实例。</p>
+</div>
+
+<div class="callout accent">
+  <span class="ct">出口 A 什么活下来了（第 1 部分）</span>
+  <p>第三部分的整个结构在无限 horizon 下都活下来，只要用<strong>折扣因果</strong>熵和平稳的软 Bellman 不动点
+  取代有限的后向扫描。失去的只是"$\log Z$ 是有限轨迹集的配分函数"这个解释；取代它的是软值函数。
+  <strong>统计上没有任何改变。</strong></p>
+</div>
+
+<h4>4.1.3 大规模或连续状态空间</h4>
+<p>这里的损失是真实的。算法的两趟都是 $O(|\mathcal{S}|^2|\mathcal{A}|)$ 的表格扫描。三样东西同时坏掉：</p>
+<ol>
+  <li><strong>表存不下。</strong>$V,\pi,d_t$ 都是以 $\mathcal{S}$ 为索引的数组；连续时它们是函数，必须近似
+  —— 线性架构，或实践中用神经网络。这把致命三角（deadly triad：自举、离轨采样、函数逼近三者的组合）的全部危险重新引入 IRL 的内循环。</li>
+  <li><strong>离散化救不了。</strong>$[0,1]^n$ 的 $\varepsilon$-网有 $\varepsilon^{-n}$ 个格点。
+  十维状态、$0.1$ 分辨率就是 $10^{10}$ 个格点，而扫描对格点是二次的。</li>
+  <li><strong>求和变积分，参考测度开始承重。</strong>$\sum_\tau q(\tau)(\cdot)$ 变成 $\int(\cdot)\,dq(\tau)$。
+  这正是相对熵表述发挥价值的地方：$-\mathrm{KL}(p\|q)$ 在连续空间上良定义且重参数化不变，
+  而 $-\int p\log p$ 两者皆非。若我们从连续微分熵出发，目标会在 $\mathcal{T}$ 的光滑坐标变换下改变值
+  —— 对一个本应编码"无知"的原则而言，这是荒谬的。</li>
+</ol>
+
+<h4>4.1.4 连续动作</h4>
+<p>动作上的软最大值 $\beta\log\sum_a\exp(Q/\beta)$ 变成 $\beta\log\int_{\mathcal{A}}\exp(Q(s,a)/\beta)\,da$：
+一个对一般 $Q$ 没有闭式的积分。标准解决办法是变分的：显式表示策略并把它拟合到 Boltzmann 目标，</p>
+<p class="mrow">$\pi \leftarrow \operatorname*{argmin}_{\pi'\in\Pi_\theta}\mathrm{KL}\Big(\pi'(\cdot\mid s)\,\Big\|\,\tfrac1{Z(s)}\exp(Q(s,\cdot)/\beta)\Big)$</p>
+<p>这正是 soft actor–critic 的策略改进步骤。<strong>注意这个结构：动作上不可解的归一化子被一个学习到的采样器取代。
+接下来我们会遇到同一招的上一层版本 —— 轨迹上不可解的归一化子被一个学习到的策略取代。</strong></p>
+
+<h4>4.1.5 出口 A 小结</h4>
+<table class="min">
+<thead><tr><th>对象</th><th>有限情形</th><th>无限 / 连续情形</th></tr></thead>
+<tbody>
+<tr><td>熵目标</td><td>$T$ 步的因果熵</td><td>折扣因果熵，相对于 $q$</td></tr>
+<tr><td>后向传播</td><td>精确扫描 $T$ 步</td><td>软 Bellman 不动点（压缩性仍在）</td></tr>
+<tr><td>动作上的软最大值</td><td>$\log\sum_a$</td><td>不可解积分；变分策略（SAC）</td></tr>
+<tr><td>前向传播 / $\rho_\pi$</td><td>精确数组递推</td><td>Monte Carlo rollout 或密度模型</td></tr>
+<tr><td>配分函数 $Z$</td><td>有限和，DP 精确</td><td>不可解；被估计或被绕过</td></tr>
+<tr><td>对偶关于 $w$ 的凸性</td><td>成立</td><td>只要奖励对 $w$ 仍线性就成立</td></tr>
+</tbody>
+</table>
+<p>最后一行值得强调：<strong>只走出口 A 离开安全角落，不会让我们失去凸性。凸性是在出口 B 失去的。</strong></p>
+
+<h3 id="exitb">4.2 出口 B：特征必须手工设计吗？</h3>
+
+<p>简答：不必，现代方法也不。但这个问题藏着一个更有用的问题 —— <strong>固定的 $\phi$ 当时在为我们做什么？</strong>
+诚实回答：相当多。</p>
+
+<h4>4.2.1 固定线性类买到什么</h4>
+<ol>
+  <li><strong>充分统计量。</strong>$\mu(\pi)\in\mathbb{R}^d$ 总结了策略的一切奖励评估用途；无穷维对象塌缩成 $d$ 个数。</li>
+  <li><strong>凸性。</strong>$\log Z$ 的凸性需要 $R$ 对参数线性，这使 MaxEnt IRL 成为一个行为良好的凸估计问题。</li>
+  <li><strong>类内普适保证。</strong>特征匹配一次为类内<em>每个</em>奖励 certify 性能，比为单个估计 certify 强得多。</li>
+  <li><strong>可解释性。</strong>"专家把碰撞风险的权重设为车道偏离的 8 倍"是一句可以行动的话。</li>
+</ol>
+
+<h4>4.2.2 代价：错误规格从内部看不见</h4>
+<div class="callout warn">
+  <span class="ct">错误规格不可见</span>
+  <p>上面每条保证都在 $w\in\mathbb{R}^d$、$\phi$ 固定的前提下量化。若真实奖励不在 $\mathrm{span}\{\phi_1,\dots,\phi_d\}$ 里，
+  匹配 $\mu_E$ 对 $J_{R^\star}$ <strong>毫无</strong>含意。更糟的是，拟合<em>看起来</em>会很好：
+  残差活在模型看不见的方向上。早期开车数据上的学徒学习成果之所以奏效，是因为已经有人把任务编码进
+  "到最近车的距离"、"是否偏离路面"这样的特征里。<strong>领域知识在 $\phi$ 里，不在算法里。</strong></p>
+</div>
+
+<h4>4.2.3 学习 $\phi$ 时出现的歧义</h4>
+<p>若同时学 $\phi_\eta$ 和 $w$，对任意可逆 $A\in\mathbb{R}^{d\times d}$：</p>
+<p class="mrow">$w^\top\phi(s,a) = (A^{-\top}w)^\top\big(A\phi(s,a)\big)$</p>
+<p>所以 $(w,\phi)$ 与 $(A^{-\top}w,A\phi)$ 不可区分。只有标量场 $R$ 与特征的<strong>张成空间</strong>有意义；
+$w$ 的单个坐标没有意义。"模型学到特征 3 很重要"这类陈述，在没有固定 $A$ 的约定时是无意义的。
+这是学习特征<strong>新增</strong>的坐标一歧义，叠加在我们本来就有的奖励歧义之上。</p>
+
+<h4>4.2.4 好消息：学习规则不变</h4>
+<p>有人可能担心放弃线性就要重新推导。不必。</p>
+<p><strong>命题（任意奖励类的 MaxEnt 梯度）</strong>：设 $R_\theta$ 是任意可微奖励参数化，
+$p_\theta(\tau)\propto q(\tau)e^{R_\theta(\tau)}$，则对数似然
+$L(\theta)=\frac1m\sum_iR_\theta(\tau^{(i)})-\log Z(\theta)$ 的梯度是</p>
+<p class="mrow">$\nabla_\theta L(\theta) = \underbrace{\mathbb{E}_{\tau\sim\mathcal{D}_E}\big[\nabla_\theta R_\theta(\tau)\big]}_{\text{专家}} - \underbrace{\mathbb{E}_{\tau\sim p_\theta}\big[\nabla_\theta R_\theta(\tau)\big]}_{\text{当前模型}}$</p>
+<p>（证明：$\nabla_\theta\log Z=\frac1Z\sum_\tau q\,e^{R_\theta}\nabla_\theta R_\theta=\mathbb{E}_{p_\theta}[\nabla_\theta R_\theta]$。）</p>
+<p>它就是之前的学习规则，把 $\phi$ 换成 $\nabla_\theta R_\theta$；线性情形 $\nabla_wR_w(\tau)=\Phi(\tau)$ 两者完全一致。
+<strong>特征匹配从来不是原理；匹配奖励类的充分统计量才是。</strong>这一观察使深度 MaxEnt IRL 与
+guided cost learning 在没有新理论的情况下成为可能。</p>
+
+<div class="derivation" data-der>
+<div class="dstep" data-step="1">
+  <div class="dh">第 1 步 · 只有 $\log Z$ 含 $\theta$</div>
+  <p>专家项 $\frac1m\sum_iR_\theta(\tau^{(i)})$ 的梯度就是 $\mathbb{E}_{\mathcal{D}_E}[\nabla_\theta R_\theta]$，
+  所以只需算 $\nabla_\theta\log Z(\theta)$。</p>
+</div>
+<div class="dstep" data-step="2">
+  <div class="dh">第 2 步 · 交换求和与梯度</div>
+  <p>$\nabla_\theta\log Z = \frac{1}{Z}\nabla_\theta\!\sum_\tau q(\tau)e^{R_\theta(\tau)} = \frac{1}{Z}\sum_\tau q(\tau)e^{R_\theta(\tau)}\,\nabla_\theta R_\theta(\tau)$</p>
+  <p class="dhint">$q(\tau)$ 不含 $\theta$，所以可以自由交换；指数函数的梯度把 $\nabla_\theta R_\theta$ 挑出来。</p>
+</div>
+<div class="dstep" data-step="3">
+  <div class="dh">第 3 步 · 认出那正是 $p_\theta$ 下的期望</div>
+  <p>$\frac{1}{Z}\sum_\tau q(\tau)e^{R_\theta(\tau)} = \sum_\tau p_\theta(\tau)$，于是</p>
+  <p>$\nabla_\theta\log Z(\theta) = \mathbb{E}_{\tau\sim p_\theta}\big[\nabla_\theta R_\theta(\tau)\big]$</p>
+  <p class="dhint">相减即得命题。线性情形 $R_w=w^\top\phi$ 给出 $\nabla_wR_w(\tau)=\Phi(\tau)$，
+  与第三部分的学习规则 $\mu_E-\mathbb{E}_{p_w}[\Phi]$ 完全一致。&#8718;</p>
+</div>
+<button class="reveal-btn" type="button">显示证明下一步 →</button>
+</div>
+
+<h4>4.2.5 失去什么：凸性，以及对归纳偏置的需求</h4>
+<p>$R_\theta$ 非线性后 $L$ 不再凹。我们会遇到局部最优、对初始化敏感，以及最重要的 —— 过拟合能力。
+一个足够有表达力的 $R_\theta$ 可以记住演示：在观测到的状态-动作对上给巨大奖励、别处给零。
+那个奖励完美解释数据而且毫无用处。</p>
+<p>有用的反压力，全都是坐标一上的承诺：</p>
+<ul>
+  <li><strong>架构限制。</strong>最有力的是让 $R$ 只依赖状态，$R_\theta(s)$。第五部分会看到这不是便利，而是迁移保证的必要条件。</li>
+  <li><strong>光滑性与范数惩罚</strong>；判别器上的梯度惩罚。</li>
+  <li><strong>瓶颈</strong>，包括奖励表示上的显式信息瓶颈。</li>
+  <li><strong>多任务结构</strong>：多个任务共享一个表示、用不同权重，恢复共享部分的可识别性。</li>
+  <li><strong>先验</strong>，即贝叶斯 IRL，把选择原理显式化而非隐式化。</li>
+</ul>
+
+<div class="callout accent">
+  <span class="ct">出口 B 的回答</span>
+  <p>$\phi$ 不必手工设计，最大熵学习规则在非手工时也不变。变的是估计问题不再凸、开始需要正则化，
+  并且引入了新的重参数化歧义。<strong>奖励类的选择在学习特征时不会消失 —— 它变成<em>架构</em>的选择。
+  在第五部分它变成<em>判别器</em>的选择</strong>，这正是我们坚持"判别器架构是伪装的奖励类"的原因。</p>
+</div>
+
+<h3 id="exitc">4.3 出口 C：若我们不知道 $P$？</h3>
+
+<p>这个问题最容易让初读跑偏，因为两个完全不同的估计问题通常被混为一谈。先把它们分开。</p>
+
+<div class="callout">
+  <span class="ct">两个常被混淆的统计任务</span>
+  <p><strong>任务 1 —— 估计专家的统计量 $\rho_E$（或 $\mu_E$）。</strong><br>
+  数据：演示。不需要模型、不需要交互：对 $\mathcal{D}_E$ 求平均。它的弱点是<strong>支撑集</strong>
+  —— 在专家没到过的状态上它什么也没说。</p>
+  <p><strong>任务 2 —— 估计<em>当前候选策略</em>的统计量 $\rho_{\pi_w}$。</strong><br>
+  这东西根本不在数据里：$\pi_w$ 每个梯度步都在变。它要么需要 $P$ 的模型（用来算），
+  要么需要与环境交互的能力（用来采样）。<strong>这是让 IRL 昂贵的任务，也是唯一需要 $P$ 的任务。</strong></p>
+</div>
+
+<p>回忆 3.2.5 与 3.2.8：$P$ 恰在两处被消耗，都属于任务 2 —— 后向传播里对后继的期望 $Q_t$，
+以及前向传播里访问量的传播 $d_{t+1}$。下面全是关于如何替换这两个求和。</p>
+
+<h4>4.3.1 四种情形</h4>
+<table class="min">
+<thead><tr><th>你有什么</th><th>任务 2 怎么办</th><th>代价</th></tr></thead>
+<tbody>
+<tr><td>$P$ 有闭式，$\mathcal{S}$ 有限</td><td>精确后向 + 前向传播</td><td>每个梯度步 $O(T|\mathcal{S}|^2|\mathcal{A}|)$</td></tr>
+<tr><td>一个可重置的模拟器</td><td>Rollout $\pi_w$，用 Monte Carlo 估计 $\mathbb{E}[\Phi]$。<strong>从不需要把 $P$ 写下来</strong></td><td>方差；每步大量 rollout</td></tr>
+<tr><td>只有真实环境</td><td>拟合 $\widehat{P}$ 再规划，或直接从 on-policy 数据估计占据度</td><td>探索代价；模型偏差；安全风险</td></tr>
+<tr><td>只有固定离线数据集</td><td>任务 2 在支撑集外不可识别。需要悲观性、保守惩罚，或限制策略类</td><td>真的难；活跃研究方向</td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+  <span class="ct">模拟器不是模型，这正是重点</span>
+  <p>第二行消解了大部分困惑。"无模型"不是"无动力学"，而是你从不需要把 $P$ 当成一个对象；
+  你只需要能抽 $s'\sim P(\cdot\mid s,a)$。<strong>几乎所有现代 IRL 方法都在这一行。</strong></p>
+</div>
+
+<h4>4.3.2 采样梯度</h4>
+<p>Monte Carlo 替换很直接：从当前软策略抽 $n$ 条 rollout，令</p>
+<p class="mrow">$\widehat{\mathbb{E}_{p_w}[\Phi]} = \frac1n\sum_j\Phi(\tau_j),\qquad \widehat{\nabla_wL} = \mu_E - \frac1n\sum_j\Phi(\tau_j)$</p>
+<p>无偏且相合。问题在于<strong>当前软策略本身每个外层步都要靠一次内层前向 RL 求解得到</strong>
+—— 极其浪费，因为 $w$ 只稍微变了一点。</p>
+
+<p><strong>引导式代价学习（guided cost learning, Finn et al. 2016）</strong>用重要性采样消除浪费：
+维护一个采样器 $\pi_{\mathrm{samp}}$，复用它的 rollout，用权重校正：</p>
+<p class="mrow">$\omega_j \propto \frac{e^{R_\theta(\tau_j)}}{\pi_{\mathrm{samp}}(\tau_j)},\qquad \widehat{\nabla_\theta L} = \mathbb{E}_{\mathcal{D}_E}[\nabla_\theta R_\theta] - \sum_j\frac{\omega_j}{\sum_{j'}\omega_{j'}}\nabla_\theta R_\theta(\tau_j)$</p>
+<p>同时交替把 $\pi_{\mathrm{samp}}$ 向软最优改进。但当 $\pi_{\mathrm{samp}}$ 漂离 $p_\theta$ 时权重退化，这是实际的失效模式。</p>
+
+<div class="derivation" data-der>
+<div class="dstep" data-step="1">
+  <div class="dh">第 1 步 · 写出要估计的量</div>
+  <p>目标期望是 $\mathbb{E}_{\tau\sim p_\theta}[\nabla_\theta R_\theta(\tau)]$，但我们只有
+  $\pi_{\mathrm{samp}}$ 的样本。重要性采样用权重把样本“搬”到目标分布：</p>
+  <p>$\mathbb{E}_{p_\theta}[g] = \mathbb{E}_{\pi_{\mathrm{samp}}}\!\left[\frac{p_\theta(\tau)}{\pi_{\mathrm{samp}}(\tau)}\,g(\tau)\right]$</p>
+</div>
+<div class="dstep" data-step="2">
+  <div class="dh">第 2 步 · 代入两个轨迹密度</div>
+  <p>$p_\theta(\tau)\propto q(\tau)e^{R_\theta(\tau)}$ 与 $\pi_{\mathrm{samp}}(\tau) = q(\tau)\prod_t\pi_{\mathrm{samp}}(a_t\mid s_t)$，相除：</p>
+  <p>$\frac{p_\theta(\tau)}{\pi_{\mathrm{samp}}(\tau)} \propto \frac{e^{R_\theta(\tau)}}{\prod_t\pi_{\mathrm{samp}}(a_t\mid s_t)}$</p>
+</div>
+<div class="dstep" data-step="3">
+  <div class="dh">第 3 步 · $q$ 抵消 —— 从不需要 $P$</div>
+  <p><strong>分子分母的 $q(\tau)$ 完全抵消</strong>：权重 $\omega_j\propto e^{R_\theta(\tau_j)}\big/\prod_t\pi_{\mathrm{samp}}(a_t\mid s_t)$
+  只含奖励与采样器自己的动作概率，不含任何转移概率。</p>
+  <p class="dhint">归一化常数（配分函数）同样被“归一化掉”：权重只按比例取，最后再除以 $\sum_j\omega_j$。
+  这是引导式代价学习能完全无模型的根本原因。</p>
+</div>
+<button class="reveal-btn" type="button">显示下一步 →</button>
+</div>
+
+<h4>4.3.3 支撑集、探索与模型误差</h4>
+<ul>
+  <li><strong>支撑集。</strong>从未尝试的转移无法被估计。若 $\rho_E$ 的支撑集学习者从不到访（或反之），
+  驱动学习规则的那个比较就在不可比的集合上进行。这是模仿学习在专家分布外退化的深层原因，
+  也是行为克隆中复合误差的来源。</li>
+  <li><strong>模型误差复合。</strong>若拟合 $\widehat{P}$ 并在其中规划，误差沿有效 horizon 累积：
+  每步 total-variation 误差 $\varepsilon$ 造成 $\varepsilon/(1-\gamma)$ 阶的占据度误差，
+  因而造成<strong>有偏</strong>的奖励梯度。偏差不会像方差那样在梯度步间平均掉。</li>
+  <li><strong>交互可能不可接受。</strong>在外科、航空、金融里探索的代价，没有样本复杂度界能捕捉。</li>
+</ul>
+
+<div class="callout">
+  <span class="ct">一条实用决策规则</span>
+  <p>只有当算法要求精确的动态规划期望时，才要求精确的转移概率。只要你能<strong>采样</strong>转移，
+  每个这样的期望都能在从不把 $P$ 写下来的情况下被估计。你付的是样本复杂度、方差、覆盖要求，
+  可能还有真实世界探索的风险；你<em>不</em>付的是 IRL 目标本身的任何改变 —— <strong>坐标一未被出口 C 触动</strong>。</p>
+</div>
+
+<h4 id="pivot">4.3.4 【关键转折】从"估计期望"到"估计比值"</h4>
+<p>这里是生成本文剩余全部内容的那个想法。</p>
+<p>学习规则要求我们比较一个<strong>已知</strong>函数 $\phi$ 在两个<strong>未知</strong>分布下的期望：$\rho_E$ 与 $\rho_\pi$。
+我们两个都有样本：演示给出 $\rho_E$ 的样本，rollout 给出 $\rho_\pi$ 的样本。
+所以真正的任务是：<em>给定两个分布的样本，量化并缩小它们的差异。</em></p>
+<p>机器学习有一个为这个任务高度发展的工具，而且它不是积分。它是<strong>二分类</strong>。
+一个被训练来区分 $\rho_E$ 样本与 $\rho_\pi$ 样本的分类器，在其最优处恢复两者之间的密度比
+—— 而密度比正是我们想要的差异信号。<strong>没有配分函数，没有转移核，没有枚举。</strong></p>
+<p>那个替换就是 GAIL。我们现在把它精确化。</p>
+</section>
+
+<!-- ================= 第五部分 ================= -->
+<section id="p5">
+<h2><span class="n">第五部分</span>对抗方法：占据度度量、GAIL、AIRL</h2>
+
+<h3 id="occvar">5.1 占据度度量：正确的变量替换</h3>
+
+<p>最大间隔与最大熵都在策略上做优化，而两个目标都只通过 $\sum_{s,a}\rho_\pi(s,a)(\cdot)$
+这种形式的平均依赖策略。这是一个强烈的暗示：<strong>$\rho$ 而非 $\pi$ 才是自然的变量。</strong>
+换到它，IRL 变成凸对偶问题，GAIL 变成定理而非类比。</p>
+
+<p><strong>定义（占据多面体）</strong>：</p>
+<p class="mrow">$\mathcal{D} \triangleq \Big\{\rho\in\mathbb{R}^{\mathcal{S}\times\mathcal{A}}_{\ge0}:\ \sum_a\rho(s,a) = (1-\gamma)d_0(s) + \gamma\sum_{s',a'}P(s\mid s',a')\rho(s',a')\ \ \forall s\Big\}$</p>
+<p>即满足 <strong>Bellman 流约束</strong>的非负测度集。</p>
+
+<p><strong>定理（策略与占据度是同一个东西）</strong>：映射 $\pi\mapsto\rho_\pi$ 是从平稳策略到 $\mathcal{D}$ 的双射，
+逆映射为</p>
+<p class="mrow">$\pi_\rho(a\mid s) = \frac{\rho(s,a)}{\sum_{a'}\rho(s,a')}$</p>
+<p>且 $\mathcal{D}$ 是紧凸多面体。三个推论做了全部工作：</p>
+<ol>
+  <li><strong>回报对 $\rho$ 线性</strong>：$J_R(\pi)=\frac{1}{1-\gamma}\langle R,\rho_\pi\rangle$。
+  因此前向 RL 是 $\mathcal{D}$ 上的线性规划。</li>
+  <li><strong>匹配占据度就是匹配行为</strong>：$\rho_\pi=\rho_E$ 当且仅当 $\pi=\pi_E$。
+  模仿学习恰好是一个分布匹配问题，完全不用提奖励。</li>
+  <li><strong>混合是合法的</strong>：$\mathcal{D}$ 凸，故 $\rho_{\tilde\pi}=\sum_i\lambda_i\rho_{\pi_i}$ 可实现
+  —— 这正是最大间隔算法返回混合策略的依据。</li>
+</ol>
+<h4>5.1.4 【逐步推导】为什么熵也是 $\rho$ 的函数</h4>
+<p>上面说折扣因果熵可以写成 $\rho$ 的凹函数。这句话值得推一步，因为它把整个第五部分从
+“在策略上优化”翻转为“在占据度上优化”。</p>
+<div class="derivation" data-der>
+<div class="dstep" data-step="1">
+  <div class="dh">第 1 步 · 把期望写成对 $(s,a)$ 的求和</div>
+  <p>因果熵是每步 $-\log\pi(a_t\mid s_t)$ 的折扣期望。用 $\Pr_\pi(s_t=s,a_t=a)$ 把它展开：</p>
+  <p>$\mathcal{H}_\gamma(\pi) = \sum_{s,a}\Big[\sum_{t\ge0}\gamma^t\,\Pr_\pi(s_t=s,a_t=a)\Big]\big(-\log\pi(a\mid s)\big)$</p>
+  <p class="dhint">方括号里的量就是占据度（除以归一化常数）：$\sum_t\gamma^t\Pr_\pi(\cdot)=\dfrac{\rho_\pi(s,a)}{1-\gamma}$。</p>
+</div>
+<div class="dstep" data-step="2">
+  <div class="dh">第 2 步 · 把策略本身也换成占据度</div>
+  <p>由双射的逆映射，$\pi(a\mid s)=\dfrac{\rho(s,a)}{\sum_{a'}\rho(s,a')}$。代入：</p>
+  <p>$\mathcal{H}_\gamma(\pi) = \frac{1}{1-\gamma}\sum_{s,a}\rho(s,a)\left(-\log\frac{\rho(s,a)}{\sum_{a'}\rho(s,a')}\right)$</p>
+</div>
+<div class="dstep" data-step="3">
+  <div class="dh">第 3 步 · 结论：熵只通过 $\rho$ 依赖策略</div>
+  <p>方括号外的常数 $\frac{1}{1-\gamma}$ 不影响优化。于是定义</p>
+  <p>$\bar{\mathcal{H}}(\rho) \;=\; -\sum_{s,a}\rho(s,a)\log\frac{\rho(s,a)}{\sum_{a'}\rho(s,a')}$</p>
+  <p>它是 $\rho$ 的凹函数。理由：固定状态 $s$，令 $c_s=\sum_{a'}\rho(s,a')$，则该状态的贡献是
+  $c_s\cdot\mathcal{H}\big(\rho(\cdot\mid s)\big)$，即熵 $\mathcal{H}$ 在 $(c_s,\rho(\cdot|s))$ 上的<strong>透视</strong>（perspective）；
+  熵本身凹，透视保凹，所以对 $\rho$ 整体凹。</p>
+  <p class="dhint">“分母只依赖状态”这句口语化说法的严格版本就是这个透视论证：
+  分母 $\sum_{a'}\rho(s,a')$ 虽然依赖 $\rho$，但它作为条件分布的归一化常数出现，
+  恰好构成保凹的透视形式。</p>
+  <p>于是 <strong>“熵正则化的 RL”是多面体 $\mathcal{D}$ 上的凹最大化</strong> ——
+  目标里的每个量（回报、熵）都是 $\rho$ 的线性或凹函数，优化对象从策略换成了占据度。</p>
+</div>
+<button class="reveal-btn" type="button">显示下一步 →</button>
+</div>
+
+<h3 id="gail">5.2 GAIL：把模仿当作密度比估计</h3>
+
+<h4>5.2.1 带显式正则化的 IRL</h4>
+<p>按 Ho 与 Ermon 的变分处理，把 IRL 抽象地写出来。一个奖励是好的，如果专家在它下面得分好、
+而最佳可达策略得分不比专家好多少 —— 即奖励<strong>解释了这个差距</strong>。加一个凸正则化 $\psi$ 让问题有界：</p>
+<p class="mrow">$\mathrm{IRL}_\psi(\pi_E) = \operatorname*{argmax}_R\ -\psi(R) + \Big(\min_\pi -\beta\bar{\mathcal{H}}(\rho_\pi) - \langle R,\rho_\pi\rangle\Big) + \langle R,\rho_E\rangle$</p>
+<p>没有 $\psi$ 这正是第二部分的不良定义问题；<strong>$\psi$ 就是选择原理，这次被显式写了下来。</strong></p>
+
+<h4>5.2.2 Ho–Ermon 定理：整个管线等价于占据度匹配</h4>
+<p><strong>定理</strong>：对 $\mathrm{IRL}_\psi$ 返回的奖励跑 RL，得到</p>
+<p class="mrow">$\mathrm{RL}\circ\mathrm{IRL}_\psi(\pi_E) = \operatorname*{argmin}_\pi\ -\beta\bar{\mathcal{H}}(\rho_\pi) + \psi^*(\rho_\pi-\rho_E)$</p>
+<p>其中 $\psi^*$ 是 $\psi$ 的凸共轭。</p>
+<div class="callout accent">
+  <span class="ct">请慢慢读这个定理</span>
+  <p>它说整个"先 IRL 再 RL"的管线<strong>等价于</strong>单个占据度匹配问题，其中奖励正则化 $\psi$ 的选择
+  变成了比较 $\rho_\pi$ 与 $\rho_E$ 时所用<strong>散度</strong> $\psi^*$ 的选择。中间那个奖励是可以被消去的计算装置。
+  下面一切都是 $\psi$ 的选择。</p>
+</div>
+
+<h4>5.2.3 两种 $\psi$</h4>
+<p><strong>(i) 线性类上的常数。</strong>令 $\psi$ 在 $R=w^\top\phi,\|w\|_2\le1$ 时为 0、否则为 $+\infty$。
+则 $\psi^*$ 是该集合的支撑函数，目标变为</p>
+<p class="mrow">$\min_\pi\max_{\|w\|_2\le1} w^\top\big(\mu(\pi)-\mu_E\big) = \min_\pi\|\mu(\pi)-\mu_E\|_2$</p>
+<p>正是学徒学习。它的弱点现在作为 $\psi^*$ 的性质清晰可见：它是个硬约束，在小类内强制精确特征匹配，
+并把类外任何 $\rho_\pi$ 一律视为同样糟糕。</p>
+<p><strong>(ii) 对专家自身奖励值的光滑惩罚。</strong>Ho–Ermon 选
+$\psi_{\mathrm{GA}}(R)=\mathbb{E}_{\rho_E}[g(R(s,a))]$（$g$ 为某个特定凸函数），
+其共轭是 Jensen–Shannon 散度：</p>
+<p class="mrow">$\psi_{\mathrm{GA}}^*(\rho_\pi-\rho_E) = \max_{D:\mathcal{S}\times\mathcal{A}\to(0,1)}\ \mathbb{E}_{\rho_E}[\log D(s,a)] + \mathbb{E}_{\rho_\pi}[\log(1-D(s,a))]$</p>
+<p>这个正则化惩罚在专家对上取值过大的奖励，对<em>所有</em>奖励有定义而非固定一个张成空间，
+而且关键地 —— 它的共轭<strong>仅凭样本就可计算</strong>。</p>
+
+<h4>5.2.4 GAIL 目标</h4>
+<div class="callout">
+  <span class="ct">GAIL（Ho &amp; Ermon, 2016）</span>
+  <p>$\min_\pi\max_D\ \ \mathbb{E}_{(s,a)\sim\rho_E}[\log D(s,a)] + \mathbb{E}_{(s,a)\sim\rho_\pi}[\log(1-D(s,a))] - \beta\bar{\mathcal{H}}(\rho_\pi)$</p>
+  <p><strong>本文固定的约定</strong>：$D(s,a)$ 是"该数对来自专家"的估计概率。
+  （Ho–Ermon 原文用相反标签；两个目标由 $D\mapsto1-D$ 联系。混用两种约定是本领域最常见的符号混淆来源。）</p>
+</div>
+
+<h4>5.2.5 【逐步推导】判别器在估计密度比</h4>
+<div class="derivation" data-der>
+<div class="dstep" data-step="1">
+  <div class="dh">第 1 步 · 固定 $\pi$，内层是逐点最大化</div>
+  <p>对固定的 $\pi$，把目标看作对每个 $(s,a)$ 的函数，要最大化</p>
+  <p>$\rho_E(s,a)\log D(s,a) + \rho_\pi(s,a)\log(1-D(s,a))$</p>
+  <p class="dhint">$D\in(0,1)$。这是一个关于 $D$ 的一元凹函数（两个 $\log$ 的正组合）。</p>
+</div>
+<div class="dstep" data-step="2">
+  <div class="dh">第 2 步 · 求驻点</div>
+  <p>对 $D$ 求导并令为零：</p>
+  <p>$\frac{\rho_E}{D} - \frac{\rho_\pi}{1-D} = 0 \quad\Longrightarrow\quad \rho_E(1-D) = \rho_\pi D$</p>
+</div>
+<div class="dstep" data-step="3">
+  <div class="dh">第 3 步 · 解出最优判别器</div>
+  <p>$D^\star(s,a) = \dfrac{\rho_E(s,a)}{\rho_E(s,a)+\rho_\pi(s,a)}$</p>
+  <p class="dhint">这正是"专家密度占两者之和的比例"，即<strong>后验概率</strong>。
+  于是 $D$ 的对数几率 $\log\frac{D^\star}{1-D^\star}=\log\frac{\rho_E}{\rho_\pi}$ 就是密度比。</p>
+</div>
+<div class="dstep" data-step="4">
+  <div class="dh">第 4 步 · 代回，得到 JS 散度</div>
+  <p>把 $D^\star$ 代回目标，令 $m=\frac{\rho_E+\rho_\pi}{2}$：</p>
+  <p>$\rho_E\log\frac{\rho_E}{\rho_E+\rho_\pi}+\rho_\pi\log\frac{\rho_\pi}{\rho_E+\rho_\pi} = \mathrm{KL}(\rho_E\|m)+\mathrm{KL}(\rho_\pi\|m)-\log4 = 2\,\mathrm{JS}(\rho_E\|\rho_\pi)-\log4$</p>
+  <p>于是 GAIL 是：$\ \min_\pi\ 2\,\mathrm{JS}(\rho_E\|\rho_\pi) - \beta\bar{\mathcal{H}}(\rho_\pi)$。
+  <strong>判别器把一个不可解的积分（配分函数）替换成了一个分类问题。</strong></p>
+</div>
+<button class="reveal-btn" type="button">显示下一步 →</button>
+</div>
+
+<h4>5.2.6 把判别器变成奖励：三种代理奖励不等价</h4>
+<p>策略一方最小化 $\mathbb{E}_{\rho_\pi}[\log(1-D)]$，即最大化代理奖励</p>
+<p class="mrow">$\hat r(s,a) = -\log(1-D(s,a)) \in (0,\infty)$</p>
+<p>然后可以用任何策略梯度方法（TRPO、PPO）在 $\hat r$ 上跑。</p>
+<table class="min">
+<thead><tr><th>代理奖励</th><th>值域</th><th>隐含偏置</th></tr></thead>
+<tbody>
+<tr><td>$-\log(1-D)$</td><td>$(0,+\infty)$</td><td>恒正：鼓励<strong>活得更久</strong></td></tr>
+<tr><td>$\log D$</td><td>$(-\infty,0)$</td><td>恒负：鼓励<strong>早点结束</strong></td></tr>
+<tr><td>$\log D-\log(1-D)$</td><td>$(-\infty,\infty)$</td><td>真正的对数几率；符号无偏</td></tr>
+</tbody>
+</table>
+<p>在变长回合的任务上，这些选择会显著改变学到的行为，而且与模仿本身无关。
+"用对数几率"的文字与用 $-\log(1-D)$ 的公式描述的不是同一个算法。AIRL 用对数几率形式，
+理由是结构性的而非装饰性的。</p>
+
+<h4>5.2.7 GAIL 在收敛时不包含奖励信息</h4>
+<div class="callout warn">
+  <span class="ct">收敛时，判别器不含任何奖励信息</span>
+  <p>若模仿成功，$\rho_\pi=\rho_E$，则 $D^\star\equiv\frac12$，代理奖励 $-\log(1-D^\star)$ 是常数 $\log2$。
+  常数奖励让任何策略都最优（见第二部分）。因此一次成功的 GAIL 运行结束时，
+  <strong>字面上没有任何东西可供提取</strong>。</p>
+  <p>GAIL 表现出的任何类奖励信号，只存在于训练<strong>过程</strong>中，是当前学习者与专家不匹配的副产品。
+  它是优化轨迹的函数，不是任务的函数。这不是“塑形项”的模糊说法
+  —— 它是 GAIL 不能迁移的精确原因。</p>
+</div>
+
+<div class="callout ok">
+  <span class="ct">手算检验（两张表，几行算术）</span>
+  <p>设占据度只支撑在两个数对上，$\rho_E=(0.6,0.4)$。</p>
+  <table class="min">
+  <thead><tr><th>情况</th><th>$\rho_\pi$</th><th>$D^\star=\frac{\rho_E}{\rho_E+\rho_\pi}$</th><th>对数几率 $\log\frac{D^\star}{1-D^\star}$</th></tr></thead>
+  <tbody>
+  <tr><td>训练中（不匹配）</td><td>$(0.2,0.8)$</td><td>$(0.75,\,0.333)$</td><td>$=\log\frac{\rho_E}{\rho_\pi}=(1.099,\,-0.693)$</td></tr>
+  <tr><td>收敛时（匹配）</td><td>$(0.6,0.4)$</td><td>$(0.5,\,0.5)$</td><td>$(0,\,0)$ —— 奖励恒为常数</td></tr>
+  </tbody></table>
+  <p>第一行：对数几率逐分量等于 $\log(\rho_E/\rho_\pi)$，正是密度比；
+  代理奖励 $-\log(1-D^\star)=(1.386,\,0.405)$ 随 $(s,a)$ 变化，<strong>看似是奖励</strong>。
+  第二行：模仿成功后 $D^\star\equiv\frac12$，代理奖励恒为 $\log2$，<strong>不再携带任何信息</strong>。
+  两行合起来把本节的论点变成可以笔算检验的事实。</p>
+</div>
+
+<div class="callout ledger">
+  <span class="ct">台账 · GAIL</span>
+  <p><strong>假设（坐标一）</strong>：行为模型是熵正则化的最优性；选择原理是 $\psi_{\mathrm{GA}}$，
+  等价于"在 JS 散度下匹配占据度"；奖励类是判别器架构能表达的一切。<br>
+  <strong>近似（坐标二）</strong>：一切都近似了，而且便宜。$Z$ 从未被构造，$P$ 从未被写下，
+  两个占据度都只用样本表示。需要与环境<strong>在线</strong>交互，并继承 minimax 优化的不稳定性。<br>
+  <strong>交付</strong>：一个模仿策略，常常很出色，能从原始观测做连续控制。<strong>不</strong>交付奖励。<br>
+  <strong>因此</strong>：想要同一 MDP 里的行为，用 GAIL；想要一个可以到别处重新优化的目标，请往下读。</p>
+</div>
+
+<h3 id="airl">5.3 AIRL：恢复某种可以迁移的东西</h3>
+
+<p>AIRL 保留 GAIL 的采样机制，通过<strong>约束判别器</strong>让一个可迁移的奖励被迫出现在里面，
+从而修补它在坐标一上的亏空。</p>
+
+<h4>5.3.1 判别器形式的来源（不是任意架构）</h4>
+<p>设“专家”分布是第三部分的最大熵模型 $p_\theta(\tau)\propto q(\tau)e^{\sum_tf_\theta(s_t,a_t)}$，
+“假”样本来自当前策略 $\pi$。这个判别器的形式不是随手选的架构，它是两个轨迹密度之间的
+贝叶斯后验。我们逐步推出它。</p>
+
+<div class="derivation" data-der>
+<div class="dstep" data-step="1">
+  <div class="dh">第 1 步 · 贝叶斯最优判别器就是后验概率</div>
+  <p>区分两个假设的贝叶斯最优分类器，是“该样本来自假设 1”的后验概率：</p>
+  <p>$D(\tau) = \frac{p_\theta(\tau)}{p_\theta(\tau)+p_\pi(\tau)}$</p>
+  <p class="dhint">这里两个假设是“这条轨迹由专家模型生成”与“由当前策略生成”。</p>
+</div>
+<div class="dstep" data-step="2">
+  <div class="dh">第 2 步 · 写出两个轨迹密度的分解</div>
+  <p>专家模型（第三部分的最大熵模型）与策略的轨迹密度分别是：</p>
+  <p>$p_\theta(\tau) \propto q(\tau)\,e^{\sum_t f_\theta(s_t,a_t)}, \qquad p_\pi(\tau) = q(\tau)\,\prod_t \pi(a_t\mid s_t)$</p>
+  <p class="dhint">关键观察：两者都含有<strong>同一个</strong>动力学因子 $q(\tau) = d_0(s_0)\prod_t P(s_{t+1}\mid s_t,a_t)$，
+  因为两个假设对“环境如何转移”的意见<strong>完全一致</strong>，分歧只在“动作如何选择”。</p>
+</div>
+<div class="dstep" data-step="3">
+  <div class="dh">第 3 步 · 相除，$q$ 逐项抵消</div>
+  <p>$\frac{p_\theta(\tau)}{p_\pi(\tau)} = \frac{q(\tau)e^{\sum_t f_\theta}}{q(\tau)\prod_t\pi} = \prod_t \frac{e^{f_\theta(s_t,a_t)}}{\pi(a_t\mid s_t)}$</p>
+  <p>取对数，轨迹层面的对数几率<strong>分解为每步之和</strong>：</p>
+  <p>$\log\frac{p_\theta(\tau)}{p_\pi(\tau)} = \sum_t\Big[f_\theta(s_t,a_t) - \log\pi(a_t\mid s_t)\Big]$</p>
+  <p class="dhint">正是因为两个密度都按步分解，每对 $(s,a)$ 上的后验才具有同样干净的形式：</p>
+  <p>$D_\theta(s,a) = \frac{\exp f_\theta(s,a)}{\exp f_\theta(s,a) + \pi(a\mid s)}$</p>
+</div>
+<button class="reveal-btn" type="button">显示下一步 →</button>
+</div>
+
+<p>于是立刻得到两个事实。</p>
+
+<p><strong>命题（AIRL 奖励 = 对数几率减去对数策略）</strong>：</p>
+<p class="mrow">$\hat r(s,a) = \log D_\theta(s,a)-\log(1-D_\theta(s,a)) = f_\theta(s,a) - \log\pi(a\mid s)$</p>
+
+<div class="callout">
+  <span class="ct">$-\log\pi$ 项不是噪声</span>
+  <p>最大化 $\mathbb{E}_\pi[\sum_t\gamma^t(f-\log\pi)]$ 恰好就是最大化 $J_f(\pi)+\mathcal{H}_\gamma(\pi)$：
+  软目标里的熵奖励<strong>自动</strong>出现。对抗博弈因此在 $f$ 上执行熵正则化的 RL，
+  无论有没有人手工加熵项。在最优处 $f_\theta$ 恢复专家软策略的<strong>优势</strong>
+  $A_{\mathrm{soft}}(s,a)=Q_{\mathrm{soft}}-V_{\mathrm{soft}}$ ——
+  这正是接下来的关键，因为<strong>优势是奖励加塑形，不是奖励</strong>。</p>
+</div>
+
+<h4>5.3.2 结构约束</h4>
+<p>AIRL 把 $f$ 限制成整形形式：</p>
+<p class="mrow">$f_{\theta,\omega}(s,a,s') = \underbrace{g_\theta(s)}_{\text{任务奖励}} + \underbrace{\gamma h_\omega(s') - h_\omega(s)}_{\text{势整形}}$</p>
+
+<div class="callout warn">
+  <span class="ct">$g_\theta$ 必须只依赖状态（这是 AIRL 的承重假设）</span>
+  <p>它非常常被误写成 $g_\theta(s,a)$。下面是为什么必须是 $g_\theta(s)$。</p>
+  <p>对固定动力学 $P$，诱导同一软最优策略的奖励恰是如下形式：</p>
+  <p>$r'(s,a) = r(s,a) + \gamma\,\mathbb{E}_{s'\sim P(\cdot\mid s,a)}[\Psi(s')] - \Psi(s)$</p>
+  <p>注意整形项 $\gamma\mathbb{E}_{s'\mid s,a}[\Psi(s')]-\Psi(s)$ <strong>依赖 $a$</strong>，而且<strong>依赖 $P$</strong>。
+  所以一个状态-动作奖励只在一个讨嫌项（(i) 用多少行为数据都无法与奖励区分，(ii) 动力学改变时它也改变）
+  的意义下可识别。后者恰恰是迁移的失败。</p>
+  <p>若 $g$ 只依赖 $s$，该族中唯一是 state-only 的成员是 $\Psi\equiv$ 常数（在下面的可分解条件下）。
+  依赖动作的自由度被完全挤进 $h_\omega$，于是 $g_\theta$ 除一个加性常数外被钉死。</p>
+</div>
+
+<p><strong>定义（可分解性条件）</strong>：若某状态以正概率同时转移到两个状态，则称这两状态"一步相连"。
+若这个关系的传递闭包连通整个 $\mathcal{S}$，称动力学可分解。
+等价说法：任何两个函数 $a(s),b(s)$ 若 $a(s)+b(s')$ 沿所有可行转移为常数，则它们自身为常数。</p>
+
+<p><strong>定理（解耦，Fu et al. 2018）</strong>：设动力学可分解、判别器在 $f$ 受整形约束下被训练到最优、
+真实专家对某个 state-only 奖励 $r^\star(s)$ 软最优。则在全局最优处存在常数 $c$ 使</p>
+<p class="mrow">$g_\theta(s) = r^\star(s)+c,\qquad h_\omega(s) = V^\star_{\mathrm{soft}}(s)+c$</p>
+<p>特别地，$g_\theta$ 对转移动力学的改变不变，所以在具有相同奖励结构的不同 MDP 里重新优化 $g_\theta$
+会在那里恢复适当行为。</p>
+
+<div class="callout">
+  <span class="ct">定理说了什么，没说什么</span>
+  <p>它说：在关于动力学的一个结构条件、state-only 奖励假设、以及精确优化之下，
+  恢复的 $g$ 等于真值奖励至多一个常数。它<strong>没有</strong>说奖励一般可唯一恢复；
+  state-only 限制在做识别工作，而它是关于世界的假设，不是从数据推出的事实。
+  若真实奖励真的依赖动作（比如能量代价），AIRL 会把那份依赖误归到 $h_\omega$，恢复的 $g$ 就是错的。
+  第二部分的可识别性没有被废除，而是用一个额外假设支付掉了 —— 而本文的要点正是：
+  <strong>这永远是那笔交易。</strong></p>
+</div>
+
+<div class="callout ledger">
+  <span class="ct">台账 · AIRL</span>
+  <p><strong>假设（坐标一）</strong>：GAIL 假设的一切，<em>加上</em>真实奖励是 state-only、动力学可分解。
+  作为交换，阻碍迁移的那个歧义（势整形）被构造性地除掉了。<br>
+  <strong>近似（坐标二）</strong>：和 GAIL 一样全采样，无 $Z$ 无 $P$；额外需要在 $D$ 里显式求 $\pi(a\mid s)$，
+  故策略必须有可处理的密度。<br>
+  <strong>交付</strong>：$g_\theta\approx r^\star+c$，可在新动力学下重新优化；$h_\omega\approx V^\star_{\mathrm{soft}}$，
+  本身是有用的副产品。<br>
+  <strong>失效情形</strong>：奖励真的依赖动作；动力学不可分解；判别器没被训练到接近最优
+  —— 定理讲的是 minimax 问题的全局最优，而没有任何优化器能可靠地找到它。</p>
+</div>
+</section>
+
+<!-- ================= 第六部分 ================= -->
+<section id="p6">
+<h2><span class="n">第六部分</span>综合：一张表、三个问题</h2>
+
+<h3>6.1 四种方法，读作"假设了什么 / 近似了什么"</h3>
+<table class="min">
+<thead><tr>
+<th></th><th>最大间隔</th><th>MaxCausalEnt</th><th>GAIL</th><th>AIRL</th></tr></thead>
+<tbody>
+<tr><td><strong>行为模型</strong></td><td>专家精确最优</td><td>Boltzmann-理性 $\pi\propto e^{Q_{\mathrm{soft}}/\beta}$</td><td>熵正则化最优</td><td>熵正则化最优</td></tr>
+<tr><td><strong>选择原理</strong></td><td>最大间隔</td><td>最大因果熵</td><td>$\psi_{\mathrm{GA}}$，即 $\rho$ 上的 JS 最小</td><td>$\psi_{\mathrm{GA}}$ + 整形商</td></tr>
+<tr><td><strong>奖励类</strong></td><td>固定 $\phi$ 上线性</td><td>固定 $\phi$ 上线性（或任意 $R_\theta$）</td><td>隐式：判别器架构</td><td>$g_\theta(s)$ state-only + $h_\omega$ 整形</td></tr>
+<tr><td><strong>额外结构假设</strong></td><td>—</td><td>—</td><td>—</td><td>动力学可分解</td></tr>
+<tr><td><strong>需要 $P$？</strong></td><td>是（内层 RL + $\mu(\pi)$）</td><td>是（$Q_t$ 与 $d_{t+1}$）</td><td>否，只需<em>采样器</em></td><td>否，只需<em>采样器</em></td></tr>
+<tr><td><strong>内层期望经由</strong></td><td>精确 DP / 线性求解</td><td>精确后向 + 前向传播</td><td>采样 rollout + 分类器</td><td>采样 rollout + 分类器</td></tr>
+<tr><td><strong>配分函数</strong></td><td>没有（无似然）</td><td>精确，软 DP</td><td>从未构造</td><td>从未构造</td></tr>
+<tr><td><strong>每次迭代代价</strong></td><td>QP + 完整 RL 求解</td><td>$O(T|\mathcal{S}|^2|\mathcal{A}|)$</td><td>rollout 批 + 2 步 SGD</td><td>rollout 批 + 2 步 SGD</td></tr>
+<tr><td><strong>能扩展到连续控制？</strong></td><td>否</td><td>否（表格）</td><td>是</td><td>是</td></tr>
+<tr><td><strong>返回</strong></td><td>混合策略 + 弱 $w$</td><td>唯一 $w$、软策略、似然</td><td>仅策略</td><td>策略 + 可迁移 $g_\theta$，$h_\omega\approx V_{\mathrm{soft}}$</td></tr>
+<tr><td><strong>奖励能迁移？</strong></td><td>仅在类内</td><td>仅在类内</td><td><strong>否</strong>（$D\to\frac12$）</td><td>是，在解耦定理下</td></tr>
+</tbody>
+</table>
+
+<div class="callout accent">
+  <span class="ct">一段话版本</span>
+  <p>最大间隔用几何方式固定了歧义，付出的是一个脆弱的行为模型。最大熵把几何换成似然，
+  从而处理了噪声并给出凸问题，付出的是不可解的配分函数。占据度度量揭示两者其实都在解决
+  一个伪装的分布匹配问题。GAIL 接着用分类而非积分来估计那个分布差异，这让它能扩展
+  —— 代价是把奖励彻底丢掉。AIRL 通过约束分类器把奖励放回来，让 state-only 分量与塑形分量被迫分离，
+  用又一个假设买到迁移。<strong>自始至终，没有人仅凭数据恢复出真实奖励，也没有人声称如此。</strong></p>
+</div>
+
+<h3 id="p6q">6.2 三个入门问题，一页回答</h3>
+<div class="callout">
+  <span class="ct">Q1 · "这里都是有限的，真实的无限情形会怎样？"</span>
+  <p><strong>统计</strong>不变，只有<strong>计算</strong>变。无限 horizon 需要折扣因果熵与软 Bellman 不动点，
+  后者仍是压缩（log-sum-exp 非扩张），所以什么都没失去。大规模或连续 $\mathcal{S}$ 摧毁表格传播，
+  迫使函数逼近与采样。连续 $\mathcal{A}$ 让动作上的软最大值变成不可解积分，用变分办法处理。
+  而在连续统上，最大熵目标只有作为<strong>相对熵</strong> $-\mathrm{KL}(p\|q)$ 才是良定义的
+  —— 这正是我们从第一行就坚持参考测度 $q$ 的原因，尽管在有限确定性情形它只是无害的常数。
+  先离散地学 IRL，不是因为离散问题重要，而是因为在离散情形每个量都可定义，
+  于是你能精确看到哪些后来变成了近似。</p>
+</div>
+<div class="callout">
+  <span class="ct">Q2 · "特征必须手工设计吗？"</span>
+  <p>不必。最大熵学习规则是 $\mathbb{E}_{\text{专家}}[\nabla_\theta R_\theta]-\mathbb{E}_{\text{模型}}[\nabla_\theta R_\theta]$，
+  对<em>任何</em>可微奖励类成立；经典规则 $\mu_E-\mathbb{E}[\Phi]$ 是 $R_\theta=w^\top\phi$ 的特例。
+  固定线性 $\phi$ 实际买到的是：有限充分统计量、凸对偶、类内性能保证、可解释性；
+  代价是静默的错误规格。学习 $\phi$ 用凸性换表达力，并引入新的 $(w,\phi)\sim(A^{-\top}w,A\phi)$ 歧义。
+  最重要的是，这个选择从不消失：在 GAIL 与 AIRL 里，判别器架构<em>就是</em>奖励类，只是表演得不那么明显。</p>
+</div>
+<div class="callout">
+  <span class="ct">Q3 · "若不知道 $P$ 还必须探索呢？"</span>
+  <p>先把两个任务分开。估计<strong>专家</strong>的统计量完全不需要模型 —— 它是对演示求平均。
+  估计<strong>当前候选策略</strong>的统计量，是精确 MaxEnt IRL 里唯一用到 $P$ 的地方：
+  软后向传播里的后继期望，与前向传播里的访问量传播。两者都是期望，
+  所以只要你能<strong>抽</strong>转移，就都能用采样替代，哪怕你永远写不出 $P$。
+  你付的是方差、样本复杂度、覆盖要求，可能还有真实世界探索的风险；
+  你不付 IRL 目标本身的任何改变。再往前推一步，那个"我们只需要<strong>比较</strong>两个采样分布"的观察，
+  就把积分换成了分类 —— 那一步就是 GAIL。</p>
+</div>
+
+<h3 id="p6check">6.3 读一篇 IRL 论文的清单</h3>
+<ol>
+  <li>行为模型是什么？精确最优、哪个温度的 Boltzmann 理性、还是别的？</li>
+  <li>奖励类是什么，<em>包括</em>它藏在架构里的时候？</li>
+  <li>选择原理是什么，被显式陈述还是被偷偷带入？</li>
+  <li>哪个量扮演 $\mathbb{E}_{\text{模型}}[\cdot]$ 的角色，它怎么得到 —— 精确 DP、rollout、重要性权重，还是判别器？</li>
+  <li>该方法需要 $P$、模拟器、在线交互，还是只要离线数据？</li>
+  <li>到底声称恢复了什么 —— 一个策略、一个奖励等价类、还是一个特定奖励？在什么条件下？</li>
+  <li>若声称可迁移：为了让迁移可能，哪个歧义被移除了？靠什么假设？</li>
+</ol>
+
+<h3>6.4 常见错误清单</h3>
+<ol>
+  <li>推出 $p(\tau)\propto e^{w^\top\Phi(\tau)}$，后面又断言 $p(\tau)\propto q(\tau)e^{w^\top\Phi(\tau)}$。
+  这是两个不同规划的解。请从第一行就把参考测度放进目标。</li>
+  <li>把最大熵规划在连续轨迹空间上写成 $-\int p\log p$。微分熵不具重参数化不变性。</li>
+  <li>在随机动力学下用朴素软后向传播。它寻求风险、隐式改写转移核；请用最大因果熵。</li>
+  <li>把势整形归给 Ng &amp; Russell (2000)。它是 Ng, Harada &amp; Russell (1999)。</li>
+  <li>从 Abbeel–Ng 算法返回"最后一个策略"。保证是针对混合策略的。</li>
+  <li>混用 GAIL 判别器约定，或把 $-\log(1-D)$、$\log D$、对数几率当作可互换的。它们诱导不同的存活偏置。</li>
+  <li>声称 GAIL 学到了奖励。收敛时 $D\equiv\frac12$。</li>
+  <li>把 AIRL 的任务项写成 $g_\theta(s,a)$。解耦定理要求 state-only 的 $g$。</li>
+  <li>把 $V^\star$ 的唯一性混同于 $R$ 的可识别性，或把估计量 $w$ 的唯一性混同于被估计量的可识别性。</li>
+</ol>
+
+<h3>6.5 结语</h3>
+<p>逆强化学习说起来容易，按字面解决不可能。从奖励到行为的前向映射破坏信息，所以行为永远不能决定奖励；
+而自然的修补全都需要在候选奖励诱导的策略下取期望，那是嵌套在每个梯度步里的完整前向 RL 问题。</p>
+<p>透过这两个失败读这个领域，它的历史就变得可读了。最大间隔与最大熵是对第一个失败的两个回答，
+而最大熵赢在它产生了似然：噪声被建模而非被排除，估计问题变凸。我们在第三部分构造的精确表格算法，
+是那个思想的参考实现，它的两趟传播毫无歧义地展示了哪里需要转移模型。它之后的每个方法都是对第二个失败的回答。
+占据度度量揭示内层期望到底是什么；采样取代前向传播；重要性加权复用样本；
+最后，"我们只需要比较两个采样分布"这一认识把积分换成了分类，这就是 GAIL。
+AIRL 则带着对抗训练提供的杠杆回到第一个失败，用恰好一个假设（state-only 奖励）买回恰好一个歧义（势整形）。</p>
+<p><strong>值得带走的不是某个算法，而是：在 IRL 里，每种能力都是用一个假设买到的，
+而这些假设只要你去正确的两个地方找，就总是可见的。</strong></p>
+
+<hr>
+
+<h3 id="refs">参考文献</h3>
+
+<p class="small">本文的推导、定理归属与数值例子基于下列文献。凡本文与原始论文不同之处，
+以原始论文为准。</p>
+
+<ol class="small" style="line-height:1.7">
+  <li>Ng, A. Y., &amp; Russell, S. J. (2000). Algorithms for inverse reinforcement learning. <em>ICML 2000</em>, 663–670.　（一致奖励的凸锥刻画）</li>
+  <li>Ng, A. Y., Harada, D., &amp; Russell, S. J. (1999). Policy invariance under reward transformations: theory and application to reward shaping. <em>ICML 1999</em>, 278–287.　（势整形保持最优性，及其逆命题）</li>
+  <li>Abbeel, P., &amp; Ng, A. Y. (2004). Apprenticeship learning via inverse reinforcement learning. <em>ICML 2004</em>.　（最大间隔 / 特征匹配）</li>
+  <li>Ziebart, B. D., Maas, A. L., Bagnell, J. A., &amp; Dey, A. K. (2008). Maximum entropy inverse reinforcement learning. <em>AAAI 2008</em>, 1433–1438.　（确定性动力学下的最大熵 IRL）</li>
+  <li>Ziebart, B. D. (2010). <em>Modeling Purposeful Adaptive Behavior with the Principle of Maximum Causal Entropy</em>. PhD thesis, CMU.　（随机动力学下的正确处理：最大因果熵）</li>
+  <li>Jaynes, E. T. (1957). Information theory and statistical mechanics. <em>Physical Review</em>, 106(4), 620–630.</li>
+  <li>Puterman, M. L. (1994). <em>Markov Decision Processes</em>. Wiley.　（占据度形式化与策略–占据度双射）</li>
+  <li>Syed, U., Bowling, M., &amp; Schapire, R. E. (2008). Apprenticeship learning using linear programming. <em>ICML 2008</em>, 1032–1039.</li>
+  <li>Ho, J., &amp; Ermon, S. (2016). Generative adversarial imitation learning. <em>NeurIPS 2016</em>.　（GAIL 与 RL∘IRL<sub>ψ</sub> 定理）</li>
+  <li>Fu, J., Luo, K., &amp; Levine, S. (2018). Learning robust rewards with adversarial inverse reinforcement learning. <em>ICLR 2018</em>.　（AIRL 与解耦定理）</li>
+  <li>Finn, C., Levine, S., &amp; Abbeel, P. (2016). Guided cost learning: deep inverse optimal control via policy optimization. <em>ICML 2016</em>, 49–58.　（重要性采样替代前向求解）</li>
+  <li>Wulfmeier, M., Ondrüška, P., &amp; Posner, I. (2015). Maximum entropy deep inverse reinforcement learning. <em>arXiv:1507.04888</em>.</li>
+  <li>Haarnoja, T., Zhou, A., Abbeel, P., &amp; Levine, S. (2018). Soft actor–critic. <em>ICML 2018</em>.　（连续动作的变分策略改进步）</li>
+  <li>Levine, S. (2018). Reinforcement learning and control as probabilistic inference. <em>arXiv:1805.00909</em>.</li>
+  <li>Ramachandran, D., &amp; Amir, E. (2007). Bayesian inverse reinforcement learning. <em>IJCAI 2007</em>, 2586–2591.</li>
+  <li>Cao, H., Cohen, S., &amp; Szpruch, L. (2021). Identifiability in inverse reinforcement learning. <em>NeurIPS 2021</em>.</li>
+  <li>Skalse, J., et al. (2023). Invariance in policy optimisation and partial identifiability in reward learning. <em>ICML 2023</em>.</li>
+</ol>
+
+<footer class="foot">
+  <p>中文导读：基于 Yuhan Chi, <em>A Gentle Introduction to Inverse Reinforcement Learning:
+  What Must Be Assumed, and What Must Be Approximated</em>（复旦大学讲义，2026-08-19）。
+  数学排版由本地 vendored KaTeX 0.16.9 提供（无需联网）。</p>
+  <p>推导中的所有数值已用程序核验（手算例子 $Z=26.5221$、$p(a_0=R)=0.8598$；
+  GAIL 判别器最优值 $=2\,\mathrm{JS}-\log4$；后向/前向传播与枚举一致）。</p>
+</footer>
+
+</section>
+
+</article>
+
+<script src="assets/katex/katex.min.js"></script>
+<script src="assets/katex/auto-render.min.js"></script>
+<script>
+// ---- math rendering (robust to slow / async loads of the external scripts) ----
+// The two external scripts above are synchronous and ordered, so KaTeX is
+// normally already available by the time this inline block runs.  The retry
+// below covers slow CDNs and environments that load scripts asynchronously;
+// if KaTeX never arrives the page stays fully readable (raw LaTeX in text).
+function initMath(){
+  if (!window.renderMathInElement){
+    if ((initMath.tries = (initMath.tries||0)+1) <= 200) setTimeout(initMath, 100);
+    return;
+  }
+  if (initMath.done) return;   // idempotent: safe to call on DOMContentLoaded / load
+  initMath.done = true;
+  renderMathInElement(document.body, {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      {left: "$", right: "$", display: false},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ],
+    ignoredTags: ["script","noscript","style","textarea","pre","code"],
+    ignoredClasses: ["no-math"],
+    strict: false
+  });
+}
+initMath();
+// Belt-and-braces: the two <script src> tags above are synchronous so KaTeX is
+// normally ready already, but 'load' fires after every subresource in any browser
+// or test harness, which makes rendering immune to script-load-order races.
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initMath);
+window.addEventListener("load", initMath);
+
+// ---- progressive enhancement for step-by-step derivations ----
+// Graceful degradation: steps are visible by default. We only hide later
+// steps after the reveal button is confirmed to be present and clickable.
+function initDerivations(){
+  document.querySelectorAll(".derivation").forEach(function(box){
+    var steps = box.querySelectorAll(".dstep");
+    var btn = box.querySelector(".reveal-btn");
+    if (!btn || steps.length < 2) return;
+    var idx = 1;
+    btn.style.display = "inline-block";   // (1) show the control first
+    box.classList.add("js-active");       // (2) enable step-hiding CSS
+    for (var i = idx; i < steps.length; i++) steps[i].classList.add("dhidden");
+    btn.addEventListener("click", function(){
+      if (idx >= steps.length) return;
+      var s = steps[idx];
+      s.classList.remove("dhidden");
+      s.classList.add("djust");
+      idx++;
+      if (idx >= steps.length) { btn.disabled = true; btn.textContent = "推导完成 ✓"; }
+      if (typeof s.scrollIntoView === "function") s.scrollIntoView({behavior:"smooth", block:"center"});
+    });
+  });
+}
+initDerivations();
+
+// ---- reading-progress bar ----
+(function(){
+  var bar=document.getElementById("readprog");
+  if(!bar) return;
+  function upd(){
+    var h=document.documentElement;
+    var max=h.scrollHeight-h.clientHeight;
+    var frac=max>0 ? (h.scrollTop||document.body.scrollTop)/max : 0;
+    bar.style.width=(frac*100).toFixed(1)+"%";
+  }
+  window.addEventListener("scroll",upd,{passive:true});
+  window.addEventListener("resize",upd);
+  upd();
+})();
+</script>
+</body>
+</html>

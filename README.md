@@ -1,36 +1,102 @@
-# Inverse Reinforcement Learning (IRL) 入门指南
+# A Gentle Introduction to Inverse Reinforcement Learning — LaTeX source
 
-本项目包含了逆向强化学习（Inverse Reinforcement Learning, IRL）的核心概念介绍与学习资料。
+This is a LaTeX reconstruction of the handout *"A Gentle Introduction to
+Inverse Reinforcement Learning: What Must Be Assumed, and What Must Be
+Approximated"* (Yuhan Chi, Fudan University, August 19, 2026).
 
-## 💡 什么是逆向强化学习 (IRL)？
+## Files
 
-在传统**强化学习（RL）**中，智能体的目标是根据已知的**奖励函数（Reward Function）**来学习最优策略（Policy）。
+- `main.tex` — the complete document. Self-contained: no external `.bib`
+  file or image assets are needed (the bibliography is embedded via
+  `thebibliography`, and there are no figures).
+- `main.pdf` — a pre-compiled copy, included for convenience.
 
-而在**逆向强化学习（IRL）**中：
-- **已知**：环境动力学、专家（Expert）的示范轨迹（Demonstrations）。
-- **求解**：反推专家的**奖励函数（Reward Function）**，进而推导出接近专家的最优策略。
+## Teaching companions (HTML)
 
----
+Two self-contained teaching deliverables were built from `main.tex`.
+They need no build step — just open them in a browser:
 
-## 🎯 核心经典算法
+- **`irl-zh.html`** — a Chinese (Simplified), deliberately minimalist
+  ("简约") long-form tutorial. The early material (forward RL, the
+  ill-posedness of the inverse problem) is kept concise; everything
+  **after maximum-entropy IRL** — the partition function, the worked
+  example, maximum causal entropy, the three exits, occupancy measures,
+  GAIL and AIRL — is derived one small step at a time. Eight interactive
+  "显示下一步" derivation blocks (27 step cards in total) stage the
+  load-bearing proofs (the MaxEnt optimiser, ∇log Z = E[Φ], the
+  two-pass algorithm, the AIRL discriminator posterior, the
+  entropy-as-a-function-of-ρ identity, and the guided-cost-learning weight
+  cancellation); all steps remain visible if JavaScript is unavailable.
+  A hand-calculation table in the GAIL section lets the reader verify the
+  density-ratio claim with pencil and paper, an inline SVG diagram shows
+  the two-pass backward/forward propagation, a 17-entry bibliography
+  (`#refs`) records every attribution, and a reading-progress bar tracks
+  position through the article.
+- **`irl-slides.html`** — an English presentation deck (86 slides) for
+  teaching IRL. The first half moves briskly; from the maximum-entropy
+  algorithm onward the pace deliberately slows to one idea per slide
+  with staged step-reveals. Includes presenter notes (`N`), an agenda /
+  jump-grid (`O` or `Esc`), a talk timer (`T`), fullscreen (`F`), and arrow /
+  space / Home / End navigation. The current slide is reflected in the URL
+  hash, so links and refreshes return you to the same slide. The deck also
+  degrades gracefully: a `<noscript>` stylesheet stacks all 86 slides with
+  their staged reveals already open, and a print stylesheet produces a
+  readable handout.
+- **`assets/katex/`** — a vendored copy of KaTeX 0.16.9 (JS, CSS and the
+  woff2 fonts). Both HTML files use it for mathematics, so **they render
+  correctly with no internet connection**.
 
-1. **Apprenticeship Learning via Inverse Reinforcement Learning** (Abbeel & Ng, 2004)
-   - 基于特征匹配（Feature Matching），通过最大化边际间隔求解奖励函数。
-2. **Maximum Entropy IRL (MaxEnt IRL)** (Ziebart et al., 2008)
-   - 引入最大熵原理，解决专家轨迹非最优以及多义性（Ambiguity）问题。
-3. **Deep Maximum Entropy IRL** (Wulfmeier et al., 2015)
-   - 使用深度神经网络拟合复杂的非线性奖励函数。
+### Quick preview
 
----
+```bash
+python3 -m http.server 8000   # then open http://localhost:8000/irl-zh.html
+```
 
-## 📚 本项目文件说明
+(Not strictly required — `file://` works too — but a local server avoids
+any browser restrictions on vendored fonts.)
 
-- `irl_handout.pdf`: IRL 讲义与入门总结 PDF
-- `irl_handout.tex`: LaTeX 源码文件
-- `IRL.pdf`: 经典论文与参考资料集
+## How to compile
 
----
+You need a standard TeX Live / MiKTeX installation with `pdflatex` and the
+following packages (all part of any reasonably complete TeX Live install):
+`amsmath`, `amssymb`, `amsfonts`, `mathtools`, `amsthm`, `booktabs`,
+`array`, `enumitem`, `longtable`, `multirow`, `xcolor`, `tcolorbox`
+(with the `most` bundle, which pulls in `breakable`/`skins`),
+`algorithm`, `algpseudocode`, `hyperref`, `geometry`.
 
-## 🚀 快速开始
+Compile with three passes of `pdflatex` (needed so that the table of
+contents, cross-references, and section numbers all resolve — there is no
+separate bibliography-compilation step since the references are embedded
+directly):
 
-可以通过查看 `irl_handout.pdf` 了解更详细的推导与公式。
+```bash
+pdflatex main.tex
+pdflatex main.tex
+pdflatex main.tex
+```
+
+Or, if you have `latexmk`:
+
+```bash
+latexmk -pdf main.tex
+```
+
+## Notes on this reconstruction
+
+- The content, theorem/definition/example numbering, equation numbering,
+  algorithms, tables, and the 23-item reference list were reproduced to
+  match the original page-for-page as closely as ordinary `article`-class
+  typesetting allows (37 pages here vs. 38 in the original — the
+  difference is just incidental line/page breaking, not missing content).
+- I checked every derivation, theorem statement, and the worked numerical
+  example (Example 5.10) against the underlying mathematics. Everything
+  checks out — including the subtle points the notes themselves are built
+  around (the dynamics-induced reference measure in the maximum-entropy
+  objective, the naive-vs-causal-entropy distinction, GAIL's discriminator
+  carrying no reward information at convergence, and AIRL's state-only
+  reward requirement). I did not find anything mathematically incorrect
+  that needed fixing.
+- Colour boxes (`graybox`, `redbox`, `navybox`/`navyplain`) are implemented
+  as custom `tcolorbox` environments defined near the top of `main.tex`,
+  and are easy to restyle (change the colours in the `Colours` section) if
+  you want a different palette.
