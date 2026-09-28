@@ -3,7 +3,7 @@
 %  What Must Be Assumed, and What Must Be Approximated
 %
 %  Yuhan Chi -- Fudan University
-%  LaTeX reconstruction of the original handout (August 19, 2026).
+%  August 19, 2026
 % =====================================================================
 \documentclass[11pt]{article}
 
@@ -508,6 +508,7 @@ the objective from behaviour instead.
 
 \begin{graybox}{The Two Directions}
 \begin{center}
+\small\setlength{\tabcolsep}{4pt}%
 \begin{tabular}{@{}lccc@{}}
 \textbf{Forward RL:} & dynamics $\mathcal{M}$ + reward $R$ &
 $\xrightarrow{\text{optimise}}$ & optimal policy $\pi^\star$\\[4pt]
@@ -876,7 +877,7 @@ This is where most treatments go wrong, so we go slowly.
 
 A trajectory is produced by two agencies: the learner, who chooses
 actions, and the environment, who chooses successor states. If we maximise
-the plain Shannon entropy $-\sum_\tau p(\tau)\log p(\tau)$, we implicitly
+plain Shannon entropy, $-\sum_\tau p(\tau)\log p(\tau)$, we implicitly
 declare every trajectory equally plausible \emph{a priori}, including
 trajectories the environment would essentially never produce. That is
 obviously wrong. The fix is to measure entropy relative to a reference
@@ -1010,10 +1011,12 @@ g(w) \triangleq \log Z(w) - w^\top \mu_E, \qquad \text{to be
 Minimising \eqref{eq:maxentdual} is exactly maximising the average
 log-likelihood of the demonstrations under $p_w$:
 \begin{equation}
+\begin{aligned}
 \frac1m\sum_{i=1}^m \log p_w(\tau^{(i)})
-= \frac1m\sum_{i=1}^m \Big[\log q(\tau^{(i)}) + w^\top\Phi(\tau^{(i)}) - \log Z(w)\Big]
-= \underbrace{w^\top\mu_E - \log Z(w)}_{=-g(w)}
+&= \frac1m\sum_{i=1}^m \Big[\log q(\tau^{(i)}) + w^\top\Phi(\tau^{(i)}) - \log Z(w)\Big]\\
+&= \underbrace{w^\top\mu_E - \log Z(w)}_{=-g(w)}
 + \underbrace{\tfrac1m\sum_i \log q(\tau^{(i)})}_{\text{does not involve } w}.
+\end{aligned}
 \label{eq:maxentmle}
 \end{equation}
 \end{theorem}
@@ -1144,11 +1147,12 @@ V_0(s_1) &= \log(e^{1.3133}+e^{3.1269}) = 3.2779, & Z &= e^{V_0(s_1)} = 26.522. 
 \end{align*}
 And the model's first action probability agrees both ways:
 \begin{equation*}
-p_w(a_0=R) = e^{Q_0(s_1,R) - V_0(s_1)} = \frac{22.803}{26.522} = 0.8598
+p_w(a_0=R) = e^{Q_0(s_1,R) - V_0(s_1)} = \frac{22.804}{26.522} = 0.8598
 = \frac{e^1+e^3}{Z} = \frac{22.804}{26.522}. \;\checkmark
 \end{equation*}
 Four trajectories collapsed into four $(s,a)$ evaluations. With $T=20$ the
-same collapse turns $10^{12}$ into $160$.
+same collapse turns the $4^{20}\approx10^{12}$ trajectories of the
+$5\times5$ gridworld into $25\times4\times20=2000$ state--action--time evaluations.
 \end{example}
 
 \subsection{The stochastic-dynamics trap, and maximum \emph{causal} entropy}
@@ -1808,7 +1812,8 @@ constraints.
 \begin{theorem}[Policies and occupancies are the same
 thing]\label{thm:occbijection}
 The map $\pi\mapsto\rho_\pi$ defined by \eqref{eq:occupancydef} is a
-bijection from stationary policies onto $\mathcal{D}$, with inverse
+bijection from stationary policies (identified when they agree on every
+state they visit) onto $\mathcal{D}$, with inverse
 \begin{equation}
 \pi_\rho(a\mid s) = \frac{\rho(s,a)}{\sum_{a'}\rho(s,a')}.
 \label{eq:occinverse}
@@ -1824,7 +1829,7 @@ the work:
 Forward RL is therefore a linear program over $\mathcal{D}$.
 \item \textbf{Matching occupancy is matching behaviour}: by
 Theorem~\ref{thm:occbijection}, $\rho_\pi=\rho_E$ if and only if
-$\pi=\pi_E$. Imitation is exactly a distribution-matching problem, with no
+$\pi=\pi_E$ on every state the expert visits. Imitation is exactly a distribution-matching problem, with no
 reward mentioned.
 \item \textbf{Mixtures are legal}: $\mathcal{D}$ is convex, so
 $\rho_{\tilde\pi} = \sum_i \lambda_i \rho_{\pi_i}$ is realisable---which is
@@ -2115,9 +2120,9 @@ feasible transitions must themselves be constant.
 Suppose the dynamics are decomposable, the discriminator is trained to
 optimality with $f$ constrained as in \eqref{eq:airlshaped}, and the true
 expert is soft-optimal for a state-only reward $r^\star(s)$. Then at the
-global optimum there is a constant $c$ with
+global optimum there are constants $c_1,c_2$ with
 \begin{equation}
-g_\theta(s) = r^\star(s) + c, \qquad h_\omega(s) = V^\star_\soft(s) + c.
+g_\theta(s) = r^\star(s) + c_1, \qquad h_\omega(s) = V^\star_\soft(s) + c_2.
 \label{eq:disentangleresult}
 \end{equation}
 In particular $g_\theta$ is invariant to changes in the transition
@@ -2190,7 +2195,7 @@ which is not what any optimiser reliably finds.
 \footnotesize
 \textit{Table 2: The same four methods, read as answers to ``what did you
 assume?'' and ``what did you approximate?''}\\[4pt]
-\begin{tabular}{@{}p{0.20\linewidth}p{0.18\linewidth}p{0.18\linewidth}p{0.18\linewidth}p{0.18\linewidth}@{}}
+\begin{tabular}{@{}p{0.19\linewidth}p{0.17\linewidth}p{0.17\linewidth}p{0.17\linewidth}p{0.17\linewidth}@{}}
 \toprule
  & \textbf{Max-Margin} & \textbf{MaxCausalEnt} & \textbf{GAIL} & \textbf{AIRL}\\
  & Abbeel \& Ng '04 & Ziebart '08/'10 & Ho \& Ermon '16 & Fu et al.\ '18\\
@@ -2223,7 +2228,7 @@ Scales to continuous control? & no & no (tabular) & yes & yes\\
 \multicolumn{5}{@{}l}{\textit{Outcome}}\\
 \midrule
 Returns & mixed policy + weak $w$ & unique $w$, soft policy, a likelihood
-& policy only & policy + transferable $g_\theta + h_\omega \approx
+& policy only & policy + transferable $g_\theta$; $h_\omega \approx
 V_\soft$\\
 Handles noisy experts & poorly & naturally & naturally & naturally\\
 Reward transfers to new dynamics? & only within the class & only within

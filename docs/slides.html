@@ -160,6 +160,7 @@ table.min tbody tr:last-child td{border-bottom:2px solid #c9c6bd}
     <h1 style="font-size:3rem">Inverse Reinforcement Learning</h1>
     <p style="font-size:1.2rem;color:var(--muted);margin-top:.6em">What Must Be Assumed, and What Must Be Approximated</p>
     <p style="margin-top:2.4em;font-size:.9rem;color:var(--muted)">Teaching edition &mdash; the second half slows down and derives everything step by step.</p>
+    <p class="small" style="margin-top:1.4em"><a href="index.html">Home</a> &middot; <a href="tutorial.html">Long-form tutorial</a> &middot; <a href="irl-notes.pdf">PDF handout</a></p>
   </div>
   <aside class="notes">Frame the lecture with one sentence: IRL is easy to state and impossible to solve as stated. These slides follow the handout by Yuhan Chi (Fudan University). Everything is organised on two coordinates: what a method ASSUMES, and what it APPROXIMATES. The first half is a brisk review; from the maximum-entropy algorithm onward we slow down and derive each step.</aside>
 </section>
@@ -381,7 +382,7 @@ table.min tbody tr:last-child td{border-bottom:2px solid #c9c6bd}
     <div class="mrow frag"><span>$\rho_{\tilde\pi} = \sum_i \lambda_i\,\rho_{\pi_i}$</span></div>
     <p class="frag small">Presentations that return &ldquo;the final policy&rdquo; have quietly dropped the theorem.</p>
   </div>
-  <aside class="notes">The returned object is a mixed policy: sample i ~ lambda* once at t=0, then follow pi_i forever. The guarantee (O(d/((1-gamma)^2 eps^2)) iterations, notably independent of |S|) is for the mixture.</aside>
+  <aside class="notes">The returned object is a mixed policy: sample i ~ lambda* once at t=0, then follow pi_i forever. The guarantee (O(d/((1-gamma)^2 eps^2) &middot; log(d/((1-gamma) eps))) iterations, notably independent of |S|) is for the mixture.</aside>
 </section>
 
 <section class="slide" data-title="Max-margin ledger">
@@ -636,11 +637,11 @@ table.min tbody tr:last-child td{border-bottom:2px solid #c9c6bd}
     <div class="mrow frag"><span>$V_0(s_1)=\log(e^{1.3133}+e^{3.1269})=3.2779 \;\Longrightarrow\; Z=e^{V_0(s_1)}=\mathbf{26.522}$ &nbsp;&#10003;</span></div>
     <div class="callout ok frag">
       <span class="ct">First action probability agrees too</span>
-      <p>$p_w(a_0=R)=e^{Q_0(s_1,R)-V_0(s_1)}=\dfrac{22.803}{26.522}=0.8598=\dfrac{e^1+e^3}{Z}=\dfrac{22.804}{26.522}$ &nbsp;&#10003;</p>
+      <p>$p_w(a_0=R)=e^{Q_0(s_1,R)-V_0(s_1)}=\dfrac{22.804}{26.522}=0.8598=\dfrac{e^1+e^3}{Z}=\dfrac{22.804}{26.522}$ &nbsp;&#10003;</p>
     </div>
-    <p class="frag small">With $T=20$ the same collapse turns $10^{12}$ trajectories into $160$ evaluations.</p>
+    <p class="frag small">With $T=20$ the same collapse turns the gridworld&rsquo;s $4^{20}\approx10^{12}$ trajectories into $25\times4\times20=2000$ state&ndash;action&ndash;time evaluations.</p>
   </div>
-  <aside class="notes">This is the &quot;aha&rdquo; slide of Act II: a quadrillion trajectories, four numbers. All values here have been verified numerically; 0.8598 matches to four decimals both ways.</aside>
+  <aside class="notes">This is the &ldquo;aha&rdquo; slide of Act II: four trajectories collapse into four numbers, and a trillion would collapse just as well. All values here have been verified numerically; 0.8598 matches to four decimals both ways.</aside>
 </section>
 
 <section class="slide" data-title="Stochastic trap">
@@ -764,7 +765,7 @@ table.min tbody tr:last-child td{border-bottom:2px solid #c9c6bd}
     <h1>What Breaks, and What Survives</h1>
     <p class="lede">Finite &rarr; infinite. Given &rarr; learned features. Model-based &rarr; model-free. One exit at a time, and for each we ask the same two questions.</p>
   </div>
-  <aside class="notes">From here each idea gets its own slide and derivations are revealed step by step. Tell the audience the algorithm they just saw is complete, correct and globally convergent &mdash; and unusable, for three separate reasons. (Granular, one-idea-per-slide pacing begins at Act II, with the split derivation of maximum entropy.)</aside>
+  <aside class="notes">Tell the audience the algorithm they just saw is complete, correct and globally convergent &mdash; and unusable, for three separate reasons. The granular, one-idea-per-slide pacing that began with the maximum-entropy derivation in Act II continues here.</aside>
 </section>
 
 <section class="slide" data-title="Three exits">
@@ -1052,7 +1053,7 @@ table.min tbody tr:last-child td{border-bottom:2px solid #c9c6bd}
     </div>
     <div class="frag-card frag" data-step="2">
       <div class="fh">Model error compounds</div>
-      <p>Fit $\widehat{P}$ and plan in it, and errors accumulate over the effective horizon: per-step total-variation error $\varepsilon$ gives occupancy error $\varepsilon/(1-\gamma)$ and hence a <strong>biased</strong> reward gradient. Bias does not average away over gradient steps the way variance does.</p>
+      <p>Fit $\widehat{P}$ and plan in it, and errors accumulate over the effective horizon: per-step total-variation error $\varepsilon$ gives occupancy error of order $\varepsilon/(1-\gamma)$ and hence a <strong>biased</strong> reward gradient. Bias does not average away over gradient steps the way variance does.</p>
     </div>
     <div class="frag-card frag" data-step="3">
       <div class="fh">Interaction may be unacceptable</div>
@@ -1100,7 +1101,7 @@ table.min tbody tr:last-child td{border-bottom:2px solid #c9c6bd}
     </div>
     <div class="callout ok frag">
       <span class="ct">Theorem &middot; policies and occupancies are the same thing</span>
-      <p>$\pi\mapsto\rho_\pi$ is a bijection from stationary policies onto $\mathcal{D}$, with inverse $\pi_\rho(a\mid s)=\dfrac{\rho(s,a)}{\sum_{a'}\rho(s,a')}$. $\mathcal{D}$ is a compact convex polytope.</p>
+      <p>$\pi\mapsto\rho_\pi$ is a bijection from stationary policies (identified when they agree on every visited state) onto $\mathcal{D}$, with inverse $\pi_\rho(a\mid s)=\dfrac{\rho(s,a)}{\sum_{a'}\rho(s,a')}$. $\mathcal{D}$ is a compact convex polytope.</p>
     </div>
   </div>
   <aside class="notes">Classical: Puterman 1994, and Syed et al. 2008 for the LP formulation. Changing variables converts IRL into a convex-duality problem and makes GAIL a theorem rather than an analogy.</aside>
@@ -1116,7 +1117,7 @@ table.min tbody tr:last-child td{border-bottom:2px solid #c9c6bd}
     </div>
     <div class="frag-card frag" data-step="2">
       <div class="fh">2 &middot; Matching occupancy IS matching behaviour</div>
-      <p>$\rho_\pi=\rho_E$ if and only if $\pi=\pi_E$. Imitation is exactly a distribution-matching problem, <strong>with no reward mentioned</strong>.</p>
+      <p>$\rho_\pi=\rho_E$ if and only if $\pi=\pi_E$ on every state the expert visits. Imitation is exactly a distribution-matching problem, <strong>with no reward mentioned</strong>.</p>
     </div>
     <div class="frag-card frag" data-step="3">
       <div class="fh">3 &middot; Mixtures are legal</div>
@@ -1141,7 +1142,7 @@ table.min tbody tr:last-child td{border-bottom:2px solid #c9c6bd}
 <section class="slide" data-title="Ho-Ermon theorem">
   <div class="body">
     <div class="kicker">Act IV &middot; Read this theorem slowly</div>
-    <h2>RL &circ; IRL$_\psi$ = occupancy matching</h2>
+    <h2>$\mathrm{RL}\circ\mathrm{IRL}_\psi$ = occupancy matching</h2>
     <div class="callout ok frag">
       <span class="ct">Theorem (Ho &amp; Ermon 2016)</span>
       <p>Running RL on the reward returned by $\mathrm{IRL}_\psi$ yields</p>
@@ -1346,8 +1347,8 @@ table.min tbody tr:last-child td{border-bottom:2px solid #c9c6bd}
     <h2>The disentanglement theorem</h2>
     <div class="callout ok">
       <span class="ct">Theorem (Fu et al. 2018)</span>
-      <p>Suppose the dynamics are decomposable, the discriminator is trained to optimality with $f$ constrained as above, and the true expert is soft-optimal for a state-only reward $r^\star(s)$. Then at the global optimum there is a constant $c$ with</p>
-      <p style="font-size:1.12rem">$g_\theta(s) = r^\star(s) + c, \qquad h_\omega(s) = V^\star_{\mathrm{soft}}(s) + c$</p>
+      <p>Suppose the dynamics are decomposable, the discriminator is trained to optimality with $f$ constrained as above, and the true expert is soft-optimal for a state-only reward $r^\star(s)$. Then at the global optimum there are constants $c_1,c_2$ with</p>
+      <p style="font-size:1.12rem">$g_\theta(s) = r^\star(s) + c_1, \qquad h_\omega(s) = V^\star_{\mathrm{soft}}(s) + c_2$</p>
       <p>In particular $g_\theta$ is <strong>invariant to changes in the transition dynamics</strong> &mdash; so re-optimising $g_\theta$ in a different MDP with the same reward structure recovers appropriate behaviour there.</p>
     </div>
     <p class="frag small">Two bonuses: $g_\theta$ is the transferable reward, and $h_\omega$ is a soft value-function estimate &mdash; useful in its own right.</p>
@@ -1381,7 +1382,7 @@ table.min tbody tr:last-child td{border-bottom:2px solid #c9c6bd}
       <p><strong>Fails when.</strong> The reward really depends on actions; the dynamics are not decomposable; or the discriminator is not trained near optimality.</p>
     </div>
   </div>
-  <aside class="notes">Compare side by side with the GAIL ledger two slides back: identical Coordinate-2 column, one extra line in Coordinate-1, and &quot;delivers a reward&rdquo; instead of &quot;delivers only a policy&quot;. That one line costs one assumption.</aside>
+  <aside class="notes">Compare side by side with the GAIL ledger earlier in this act: identical Coordinate-2 column, one extra line in Coordinate-1, and &ldquo;delivers a reward&rdquo; instead of &ldquo;delivers only a policy&rdquo;. That one line costs one assumption.</aside>
 </section>
 
 <!-- ============ ACT V ============ -->
@@ -1519,9 +1520,10 @@ table.min tbody tr:last-child td{border-bottom:2px solid #c9c6bd}
       IRL is easy to state and impossible to solve as stated. Read the field through its two failures and the history becomes a single argument &mdash; and the assumptions are always visible, if you look for them in the right two places.
     </p>
     <p class="small" style="margin-top:2.6em">Based on Yuhan Chi, <em>A Gentle Introduction to Inverse Reinforcement Learning</em> (Fudan University).<br>
-    Companion document: the step-by-step Chinese tutorial (<code>irl-zh.html</code>).</p>
+    Companion documents: the step-by-step <a href="tutorial.html">long-form tutorial</a> and the <a href="irl-notes.pdf">PDF handout</a>.<br>
+    <a href="index.html">&larr; Back to the home page</a></p>
   </div>
-  <aside class="notes">Close by returning to the two coordinates one last time: what did you assume, and what did you approximate? Thank the audience, and point them at the Chinese tutorial for the derivations at their own pace.</aside>
+  <aside class="notes">Close by returning to the two coordinates one last time: what did you assume, and what did you approximate? Thank the audience, and point them at the long-form tutorial and the PDF handout for the derivations at their own pace.</aside>
 </section>
 
 </div>
@@ -1544,7 +1546,7 @@ table.min tbody tr:last-child td{border-bottom:2px solid #c9c6bd}
     #bar,#notebar,#agenda{display:none}
   </style>
   <div style="position:static;padding:24px 48px;font:16px/1.6 sans-serif;color:#232323;background:#fff8ec;border-bottom:1px solid #e5e2da">
-    <b>JavaScript is disabled</b> &mdash; every slide is shown below in order, so the deck is fully readable without it; only keyboard navigation is unavailable. The step-by-step Chinese tutorial <code>irl-zh.html</code> needs no JavaScript at all.
+    <b>JavaScript is disabled</b> &mdash; every slide is shown below in order, so the deck is fully readable without it; only keyboard navigation is unavailable. The step-by-step <a href="tutorial.html">long-form tutorial</a> needs no JavaScript at all.
   </div>
 </noscript>
 <div id="notebar"></div>

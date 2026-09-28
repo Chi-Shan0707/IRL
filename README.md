@@ -1,102 +1,97 @@
-# A Gentle Introduction to Inverse Reinforcement Learning — LaTeX source
+# A Gentle Introduction to Inverse Reinforcement Learning
 
-This is a LaTeX reconstruction of the handout *"A Gentle Introduction to
-Inverse Reinforcement Learning: What Must Be Assumed, and What Must Be
-Approximated"* (Yuhan Chi, Fudan University, August 19, 2026).
+*What must be assumed, and what must be approximated.*
 
-## Files
+[![Website](https://img.shields.io/badge/website-chi--shan0707.github.io%2FIRL-2f5d9e)](https://chi-shan0707.github.io/IRL/)
+[![Build notes](https://github.com/Chi-Shan0707/IRL/actions/workflows/build-notes.yml/badge.svg)](https://github.com/Chi-Shan0707/IRL/actions/workflows/build-notes.yml)
 
-- `main.tex` — the complete document. Self-contained: no external `.bib`
-  file or image assets are needed (the bibliography is embedded via
-  `thebibliography`, and there are no figures).
-- `main.pdf` — a pre-compiled copy, included for convenience.
+A derivation-first introduction to inverse reinforcement learning (IRL). It
+starts from forward RL and ends at GAIL and AIRL. Three questions organise it:
 
-## Teaching companions (HTML)
+1. **What can be inverted?** Demonstrations pin down a reward only up to a large
+   equivalence class. What is the honest target?
+2. **How do we choose within that class?** Maximum margin versus maximum
+   (causal) entropy.
+3. **What must be approximated once we leave the finite, tabular, known-dynamics
+   world?** These are the three *exits*: infinite or continuous problems, learned
+   features, and unknown dynamics.
 
-Two self-contained teaching deliverables were built from `main.tex`.
-They need no build step — just open them in a browser:
+**Read online → <https://chi-shan0707.github.io/IRL/>**
 
-- **`irl-zh.html`** — a Chinese (Simplified), deliberately minimalist
-  ("简约") long-form tutorial. The early material (forward RL, the
-  ill-posedness of the inverse problem) is kept concise; everything
-  **after maximum-entropy IRL** — the partition function, the worked
-  example, maximum causal entropy, the three exits, occupancy measures,
-  GAIL and AIRL — is derived one small step at a time. Eight interactive
-  "显示下一步" derivation blocks (27 step cards in total) stage the
-  load-bearing proofs (the MaxEnt optimiser, ∇log Z = E[Φ], the
-  two-pass algorithm, the AIRL discriminator posterior, the
-  entropy-as-a-function-of-ρ identity, and the guided-cost-learning weight
-  cancellation); all steps remain visible if JavaScript is unavailable.
-  A hand-calculation table in the GAIL section lets the reader verify the
-  density-ratio claim with pencil and paper, an inline SVG diagram shows
-  the two-pass backward/forward propagation, a 17-entry bibliography
-  (`#refs`) records every attribution, and a reading-progress bar tracks
-  position through the article.
-- **`irl-slides.html`** — an English presentation deck (86 slides) for
-  teaching IRL. The first half moves briskly; from the maximum-entropy
-  algorithm onward the pace deliberately slows to one idea per slide
-  with staged step-reveals. Includes presenter notes (`N`), an agenda /
-  jump-grid (`O` or `Esc`), a talk timer (`T`), fullscreen (`F`), and arrow /
-  space / Home / End navigation. The current slide is reflected in the URL
-  hash, so links and refreshes return you to the same slide. The deck also
-  degrades gracefully: a `<noscript>` stylesheet stacks all 86 slides with
-  their staged reveals already open, and a print stylesheet produces a
-  readable handout.
-- **`assets/katex/`** — a vendored copy of KaTeX 0.16.9 (JS, CSS and the
-  woff2 fonts). Both HTML files use it for mathematics, so **they render
-  correctly with no internet connection**.
+## Materials
 
-### Quick preview
+| | Format | Description |
+|---|---|---|
+| [**Tutorial**](https://chi-shan0707.github.io/IRL/tutorial.html) | HTML | Long-form, blog-style walkthrough with interactive step-by-step derivations, a hand-checkable worked example, and light/dark mode. |
+| [**Slides**](https://chi-shan0707.github.io/IRL/slides.html) | HTML | 86-slide lecture deck with staged reveals, presenter notes (`N`), overview grid (`O`), timer (`T`), and fullscreen (`F`). |
+| [**Lecture notes**](https://chi-shan0707.github.io/IRL/irl-notes.pdf) | PDF | Typeset handout with definitions, theorems, proofs, algorithms, and references. Source: [`notes/irl-notes.tex`](notes/irl-notes.tex). |
 
-```bash
-python3 -m http.server 8000   # then open http://localhost:8000/irl-zh.html
+## Contents
+
+1. **Forward RL**: MDPs, policy evaluation as a linear solve, and Bellman
+   optimality as a contraction fixed point
+2. **The inverse problem**: the reward solution set is a polyhedral cone,
+   potential shaping, and the choice of reward class
+3. **Selection principles**: maximum margin (Abbeel & Ng, 2004) and maximum
+   entropy (Ziebart et al., 2008), covering the partition function, a worked
+   example, and maximum causal entropy
+4. **Three exits**: (A) infinite horizons and continuous spaces, (B) learned
+   features, (C) unknown dynamics
+5. **Occupancy measures, GAIL, and AIRL**: imitation as density-ratio
+   estimation, and recovering rewards that transfer
+6. **Synthesis**: every method on two coordinates, a checklist for reading IRL
+   papers, and common errors
+
+## Repository layout
+
+```
+.
+├── docs/                   # GitHub Pages site (served from /docs)
+│   ├── index.html          # landing page
+│   ├── tutorial.html       # long-form tutorial
+│   ├── slides.html         # lecture deck
+│   ├── irl-notes.pdf       # compiled lecture notes
+│   └── assets/katex/       # vendored KaTeX 0.16.9 (works offline)
+├── notes/
+│   └── irl-notes.tex       # LaTeX source of the lecture notes
+└── .github/workflows/      # CI: compiles the notes on every change
 ```
 
-(Not strictly required — `file://` works too — but a local server avoids
-any browser restrictions on vendored fonts.)
+## Running locally
 
-## How to compile
-
-You need a standard TeX Live / MiKTeX installation with `pdflatex` and the
-following packages (all part of any reasonably complete TeX Live install):
-`amsmath`, `amssymb`, `amsfonts`, `mathtools`, `amsthm`, `booktabs`,
-`array`, `enumitem`, `longtable`, `multirow`, `xcolor`, `tcolorbox`
-(with the `most` bundle, which pulls in `breakable`/`skins`),
-`algorithm`, `algpseudocode`, `hyperref`, `geometry`.
-
-Compile with three passes of `pdflatex` (needed so that the table of
-contents, cross-references, and section numbers all resolve — there is no
-separate bibliography-compilation step since the references are embedded
-directly):
+The site is static and needs no build step. KaTeX is vendored, so it also
+works offline:
 
 ```bash
-pdflatex main.tex
-pdflatex main.tex
-pdflatex main.tex
+python3 -m http.server -d docs 8000   # open http://localhost:8000
 ```
 
-Or, if you have `latexmk`:
+Opening the HTML files directly (`file://`) also works.
+
+## Building the notes
+
+You need a TeX Live or MiKTeX installation with `pdflatex`:
 
 ```bash
-latexmk -pdf main.tex
+cd notes
+latexmk -pdf irl-notes.tex         # or run pdflatex irl-notes.tex three times
+cp irl-notes.pdf ../docs/irl-notes.pdf
+latexmk -c                         # clean up auxiliary files
 ```
 
-## Notes on this reconstruction
+The bibliography is embedded, so no BibTeX pass is needed. Required packages:
+`amsmath`, `amssymb`, `mathtools`, `amsthm`, `booktabs`, `enumitem`,
+`longtable`, `multirow`, `xcolor`, `tcolorbox` (`most`), `algorithm`,
+`algpseudocode`, `hyperref`, and `geometry`.
 
-- The content, theorem/definition/example numbering, equation numbering,
-  algorithms, tables, and the 23-item reference list were reproduced to
-  match the original page-for-page as closely as ordinary `article`-class
-  typesetting allows (37 pages here vs. 38 in the original — the
-  difference is just incidental line/page breaking, not missing content).
-- I checked every derivation, theorem statement, and the worked numerical
-  example (Example 5.10) against the underlying mathematics. Everything
-  checks out — including the subtle points the notes themselves are built
-  around (the dynamics-induced reference measure in the maximum-entropy
-  objective, the naive-vs-causal-entropy distinction, GAIL's discriminator
-  carrying no reward information at convergence, and AIRL's state-only
-  reward requirement). I did not find anything mathematically incorrect
-  that needed fixing.
-- Colour boxes (`graybox`, `redbox`, `navybox`/`navyplain`) are implemented
-  as custom `tcolorbox` environments defined near the top of `main.tex`,
-  and are easy to restyle (change the colours in the `Colours` section) if
-  you want a different palette.
+## Citation
+
+```bibtex
+@misc{chi2026irl,
+  author = {Chi, Yuhan},
+  title  = {A Gentle Introduction to Inverse Reinforcement Learning:
+            What Must Be Assumed, and What Must Be Approximated},
+  year   = {2026},
+  url    = {https://chi-shan0707.github.io/IRL/}
+}
+```

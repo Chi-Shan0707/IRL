@@ -1,0 +1,23 @@
+name: Build LaTeX notes
+
+on:
+  push:
+    paths: ["notes/**", ".github/workflows/build-notes.yml"]
+  pull_request:
+    paths: ["notes/**"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile irl-notes.tex
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: irl-notes.tex
+          working_directory: notes
+      - uses: actions/upload-artifact@v4
+        with:
+          name: irl-notes
+          path: notes/irl-notes.pdf

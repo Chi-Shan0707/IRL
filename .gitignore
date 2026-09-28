@@ -1,0 +1,27 @@
+# LaTeX build artefacts
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+*.lof
+*.lot
+build/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Chinese-language versions (kept locally, not published)
+zh/
+*-zh.*
+*_zh.*
+*.zh.*
+*-cn.*
+*_cn.*
